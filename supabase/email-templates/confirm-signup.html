@@ -1,0 +1,34 @@
+<!--
+  Modèle de l'e-mail de confirmation d'inscription.
+  À coller dans Supabase: Authentication → Emails → Templates → « Confirm sign up ».
+  Objet suggéré: Bienvenue sur Budget Bloom 🌸 Confirmez votre adresse
+  Variables Supabase utilisées: {{ .ConfirmationURL }}, {{ .Email }}
+-->
+<div style="margin:0;padding:32px 16px;background:#FAFAFC;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1A1D20;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#FFFFFF;border:1px solid #ECECF1;border-radius:20px;">
+    <tr>
+      <td style="padding:32px 32px 8px;text-align:center;">
+        <div style="display:inline-block;width:72px;height:72px;line-height:72px;border-radius:20px;background:#F3E9DC;font-size:38px;">🌸</div>
+        <h1 style="margin:16px 0 4px;font-size:24px;font-weight:600;">Bienvenue sur Budget Bloom</h1>
+        <p style="margin:0;color:#6B7078;font-size:15px;">Vos enveloppes, vos dépenses, en un coup d'œil.</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 32px 8px;font-size:15px;line-height:1.6;">
+        <p style="margin:0 0 12px;">Il ne reste qu'une étape: confirmer que <strong>{{ .Email }}</strong> est bien votre adresse, pour activer votre compte.</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 32px 24px;text-align:center;">
+        <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 28px;background:#E46A9E;color:#FFFFFF;text-decoration:none;font-weight:600;font-size:16px;border-radius:12px;">Confirmer mon adresse</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 32px 32px;font-size:13px;line-height:1.6;color:#6B7078;">
+        <p style="margin:0 0 8px;">Le bouton ne fonctionne pas ? Copiez ce lien dans votre navigateur:<br><span style="word-break:break-all;color:#E46A9E;">{{ .ConfirmationURL }}</span></p>
+        <p style="margin:0;">Vous n'êtes pas à l'origine de cette inscription ? Ignorez simplement ce message, aucun compte ne sera activé.</p>
+      </td>
+    </tr>
+  </table>
+  <p style="max-width:480px;margin:16px auto 0;text-align:center;font-size:12px;color:#9A9FA6;">Budget Bloom 🌸</p>
+</div>

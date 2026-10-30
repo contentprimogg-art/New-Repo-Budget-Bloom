@@ -1,0 +1,125 @@
+@import 'tailwindcss';
+
+/* Palette par défaut (rose pastel). Changer de palette = redéfinir ces variables. */
+:root {
+  --bg: #fafafc;
+  --text: #1a1d20;
+  --muted: #6b7078;
+  --surface: #ffffff;
+  --border: #ececf1;
+  --accent: #e88ab4;
+  --accent-strong: #e46a9e;
+  --accent-soft: #fbe6ef;
+  --ok: #7fb88f;
+  --over: #d64550;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-over: var(--over);
+}
+
+html,
+body,
+#root {
+  min-height: 100dvh;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tailwind v4 remet le curseur par défaut sur les boutons */
+button:not(:disabled),
+[role='button'],
+select,
+summary,
+input[type='date'] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Champs de saisie aux couleurs de l'accent */
+input,
+select {
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  accent-color: var(--accent-strong);
+}
+input:hover {
+  border-color: var(--accent);
+}
+/* Focus: une seule bordure de 2px (1px de bordure + 1px de trait de même couleur, sans halo flou). */
+input:focus,
+select:focus {
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 1px var(--accent-strong);
+}
+input[aria-invalid='true'],
+input[aria-invalid='true']:focus {
+  border-color: var(--over);
+}
+input[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 1px var(--over);
+}
+
+button {
+  transition:
+    transform 0.1s,
+    filter 0.15s,
+    background-color 0.15s;
+}
+button:not(:disabled):hover {
+  filter: brightness(0.96);
+}
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+/* La liste déroulante se cale sur la taille du bouton: pas d'effet de pression qui la fausserait. */
+button[role='combobox']:not(:disabled):active {
+  transform: none;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-up {
+  animation: fade-up 0.25s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-up {
+    animation: none;
+  }
+  button {
+    transition: none;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
