@@ -11,10 +11,11 @@ export function useHash() {
   return hash
 }
 
-export type Page = 'budget' | 'savings' | 'stats'
+export type Page = 'budget' | 'savings' | 'stats' | 'profile'
 
 export function pageOf(hash: string): Page {
   if (hash.startsWith('#/savings')) return 'savings'
   if (hash.startsWith('#/stats')) return 'stats'
+  if (hash.startsWith('#/profile')) return 'profile'
   return 'budget'
 }

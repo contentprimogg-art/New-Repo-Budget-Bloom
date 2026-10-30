@@ -83,12 +83,12 @@ export default function Auth() {
   const input = 'w-full rounded-2xl border border-border bg-surface px-4 py-3'
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-4 py-6 md:max-w-4xl md:flex-row md:items-center md:gap-14">
+    <main className="mx-auto flex min-h-dvh w-full flex-col gap-6 md:max-w-4xl md:flex-row md:items-center md:gap-14 md:px-6 md:py-6">
       <div className="fade-up md:w-1/2">
         <AuthHero greetingName={mode === 'in' ? savedName : null} />
       </div>
 
-      <div className="fade-up flex flex-col gap-5 md:w-1/2">
+      <div className="fade-up mx-auto flex w-full max-w-sm flex-col gap-5 px-4 pb-8 md:w-1/2 md:px-0 md:pb-0">
         <div className="text-center md:text-left">
           <ScriptTitle as="h1" className="text-6xl">
             Budget Bloom

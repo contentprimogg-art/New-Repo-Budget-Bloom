@@ -188,7 +188,7 @@ export default function EnvelopeTable({
           {error}
         </p>
       )}
-      <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-border bg-surface shadow-sm">
         <table className="w-full min-w-176 border-collapse text-sm">
           <thead>
             <tr className="bg-accent-soft text-xs uppercase tracking-wide text-accent-strong">

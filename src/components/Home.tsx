@@ -4,13 +4,13 @@ import { fmtMoney, parseAmount } from '../lib/format'
 import { useHash } from '../lib/route'
 import { reallocTips } from '../lib/tips'
 import { supabase } from '../lib/supabase'
-import { countsAsSpent, currentMonth, envelopeStats, shiftMonth, type Envelope, type Profile } from '../lib/types'
+import { useProfile } from '../lib/profile'
+import { countsAsSpent, currentMonth, envelopeStats, shiftMonth, type Envelope } from '../lib/types'
+import AvatarLink from './AvatarLink'
 import EnvelopeDetail from './EnvelopeDetail'
 import EnvelopeStrip from './EnvelopeStrip'
-import LanguageSwitch from './LanguageSwitch'
 import IconPicker from './IconPicker'
 import MonthSummary from './MonthSummary'
-import ProfileForm from './ProfileForm'
 import ScriptTitle from './ScriptTitle'
 import TabBar from './TabBar'
 import Tips from './Tips'
@@ -23,8 +23,9 @@ function useSelectedId() {
   return hash.startsWith(PREFIX) ? hash.slice(PREFIX.length) : null
 }
 
-export default function Home({ householdId, profile }: { householdId: string; profile: Profile }) {
+export default function Home({ householdId }: { householdId: string }) {
   const { t, i18n } = useTranslation()
+  const { profile } = useProfile()
   const nowMonth = currentMonth()
   const [month, setMonth] = useState(nowMonth)
   const [firstMonth, setFirstMonth] = useState<string | null>(null)
@@ -115,9 +116,7 @@ export default function Home({ householdId, profile }: { householdId: string; pr
       {profile.firstName && <p className="font-script text-4xl leading-tight">{t('hello', { name: profile.firstName })}</p>}
       <div className="flex items-center justify-between gap-3">
         <TabBar />
-        <button onClick={() => supabase.auth.signOut()} className="no-print text-sm text-muted underline">
-          {t('signOut')}
-        </button>
+        <AvatarLink />
       </div>
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1">
@@ -198,50 +197,7 @@ export default function Home({ householdId, profile }: { householdId: string; pr
         ))}
         <NewEnvelope householdId={householdId} month={month} sort={envelopes.length} onAdded={load} />
       </div>
-      <InviteCode householdId={householdId} />
-      <ProfileForm profile={profile} />
-      <LanguageSwitch />
     </main>
-  )
-}
-
-function InviteCode({ householdId }: { householdId: string }) {
-  const { t } = useTranslation()
-  const [code, setCode] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    void supabase
-      .from('households')
-      .select('invite_code')
-      .eq('id', householdId)
-      .maybeSingle()
-      .then(({ data }) => setCode(data?.invite_code ?? null))
-  }, [householdId])
-
-  if (!code) return null
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(code!)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      /* presse-papiers indisponible (HTTP): le code reste affiché pour le recopier à la main */
-    }
-  }
-
-  return (
-    <section className="no-print flex flex-col gap-1 rounded-2xl bg-accent-soft p-4 text-sm">
-      <p className="font-medium">{t('inviteTitle')}</p>
-      <p className="text-muted">{t('inviteHint')}</p>
-      <div className="mt-1 flex items-center gap-3">
-        <code className="rounded-lg bg-surface px-3 py-1.5 text-base font-semibold tracking-widest">{code}</code>
-        <button onClick={() => void copy()} className="text-accent-strong underline">
-          {copied ? t('copied') : t('copy')}
-        </button>
-      </div>
-    </section>
   )
 }
 

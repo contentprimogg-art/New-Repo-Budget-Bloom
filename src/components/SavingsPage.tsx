@@ -4,7 +4,7 @@ import { fmtMoney, parseAmount } from '../lib/format'
 import { useHash } from '../lib/route'
 import { childrenOf, milestonesOf, totalOf, useSavings } from '../lib/savings'
 import { supabase } from '../lib/supabase'
-import LanguageSwitch from './LanguageSwitch'
+import AvatarLink from './AvatarLink'
 import MilestoneBar from './MilestoneBar'
 import SavingsDetail from './SavingsDetail'
 import TabBar from './TabBar'
@@ -30,14 +30,12 @@ export default function SavingsPage({ householdId }: { householdId: string }) {
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-6 md:max-w-3xl md:px-6 xl:max-w-6xl">
       <header className="flex items-center justify-between gap-3">
         <TabBar />
-        <button onClick={() => supabase.auth.signOut()} className="no-print text-sm text-muted underline">
-          {t('signOut')}
-        </button>
+        <AvatarLink />
       </header>
 
       {error && (
         <div role="alert" className="rounded-xl bg-over/10 px-4 py-3 text-sm text-over">
-          <p>{t('errLoad')}</p>
+          <p>{/savings_/.test(error) ? t('errMigrationSavings') : t('errLoad')}</p>
           <p className="mt-1 text-xs opacity-80">{error}</p>
         </div>
       )}
@@ -79,7 +77,6 @@ export default function SavingsPage({ householdId }: { householdId: string }) {
           })}
         {data && <NewSavings householdId={householdId} sort={top.length} onAdded={reload} />}
       </div>
-      <LanguageSwitch />
     </main>
   )
 }

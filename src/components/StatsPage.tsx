@@ -14,10 +14,9 @@ import {
   type Balance,
   type StatEnvelope,
 } from '../lib/stats'
-import { supabase } from '../lib/supabase'
 import type { Tip } from '../lib/tips'
 import GroupedBars from './GroupedBars'
-import LanguageSwitch from './LanguageSwitch'
+import AvatarLink from './AvatarLink'
 import Select from './Select'
 import TabBar from './TabBar'
 import Tips from './Tips'
@@ -147,9 +146,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-4 py-6 md:max-w-3xl md:px-6 xl:max-w-6xl">
       <header className="flex items-center justify-between gap-3">
         <TabBar />
-        <button onClick={() => supabase.auth.signOut()} className="no-print text-sm text-muted underline">
-          {t('signOut')}
-        </button>
+        <AvatarLink />
       </header>
 
       <div className="hidden print:block">
@@ -217,7 +214,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
                 { key: 'spent', label: t('spent'), color: 'var(--chart-1)', values: totals.map((m) => m.spent) },
               ]}
             />
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full min-w-136 border-collapse text-sm">
                 <thead>
                   <tr className="bg-accent-soft text-xs uppercase tracking-wide text-accent-strong">
@@ -257,7 +254,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
           {/* Par enveloppe */}
           <section className={`${card} flex flex-col gap-3`}>
             <h2 className="font-medium">{t('byEnvelope')}</h2>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full min-w-136 border-collapse text-sm">
                 <thead>
                   <tr className="bg-accent-soft text-xs uppercase tracking-wide text-accent-strong">
@@ -322,7 +319,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
                 format={money}
                 series={[{ key: 'spent', label: t('spent'), color: 'var(--chart-1)', values: weekly.totals }]}
               />
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-2xl border border-border">
                 <table className="w-full min-w-136 border-collapse text-sm">
                   <thead>
                     <tr className="bg-accent-soft text-xs uppercase tracking-wide text-accent-strong">
@@ -370,7 +367,6 @@ export default function StatsPage({ householdId }: { householdId: string }) {
           )}
         </>
       )}
-      <LanguageSwitch />
     </main>
   )
 }

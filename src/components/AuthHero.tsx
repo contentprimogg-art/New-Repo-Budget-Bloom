@@ -20,6 +20,16 @@ export default function AuthHero({ greetingName }: { greetingName?: string | nul
     el?.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
   }
 
+  // La barre d'état du téléphone prend la couleur du haut de la carte (effet « plein écran »).
+  useEffect(() => {
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    const previous = meta?.content
+    if (meta) meta.content = '#FBE6EF'
+    return () => {
+      if (meta && previous) meta.content = previous
+    }
+  }, [])
+
   // Défilement automatique doux, arrêté dès que la personne touche au carrousel ou préfère moins d'animations.
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -34,12 +44,12 @@ export default function AuthHero({ greetingName }: { greetingName?: string | nul
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="relative w-full overflow-hidden rounded-4xl shadow-lg shadow-accent/20">
+      <div className="relative w-full overflow-hidden rounded-b-4xl shadow-lg shadow-accent/20 md:rounded-4xl">
         <div
           ref={scroller}
           onScroll={(e) => setIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
           onPointerDown={() => (touched.current = true)}
-          className="flex aspect-5/4 snap-x snap-mandatory overflow-x-auto scrollbar-none md:aspect-4/5 [&::-webkit-scrollbar]:hidden"
+          className="flex h-[44dvh] min-h-72 snap-x snap-mandatory overflow-x-auto scrollbar-none md:aspect-4/5 md:h-auto [&::-webkit-scrollbar]:hidden"
         >
           {SLIDES.map((s, i) => (
             <div key={s.stage} className="relative size-full shrink-0 snap-center" aria-hidden={i !== index}>
@@ -55,7 +65,7 @@ export default function AuthHero({ greetingName }: { greetingName?: string | nul
             </div>
           ))}
         </div>
-        <img src="/favicon.svg" alt="" className="absolute left-4 top-4 size-11 rounded-xl shadow-md" />
+        <img src="/favicon.svg" alt="" className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] size-11 rounded-xl shadow-md" />
       </div>
       <div role="tablist" aria-label={t('authSlides')} className="flex gap-2">
         {SLIDES.map((s, i) => (

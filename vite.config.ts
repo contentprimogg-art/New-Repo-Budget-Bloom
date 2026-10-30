@@ -18,8 +18,8 @@ export default defineConfig({
         short_name: 'Bloom',
         description: 'Enveloppes budgétaires',
         lang: 'fr',
-        theme_color: '#FAFAFC',
-        background_color: '#FAFAFC',
+        theme_color: '#F5EFE3',
+        background_color: '#F5EFE3',
         display: 'standalone',
         start_url: '/',
         icons: [
