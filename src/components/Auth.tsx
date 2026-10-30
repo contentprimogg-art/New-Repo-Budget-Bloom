@@ -6,7 +6,15 @@ import AuthHero from './AuthHero'
 import LanguageSwitch from './LanguageSwitch'
 import ScriptTitle from './ScriptTitle'
 
-type Errors = { email?: string; password?: string; form?: string }
+type Errors = { firstName?: string; email?: string; password?: string; form?: string }
+
+const savedName = (() => {
+  try {
+    return localStorage.getItem('bloomName')
+  } catch {
+    return null
+  }
+})()
 
 const ERROR_KEYS: Record<string, string> = {
   invalid_credentials: 'errBadCredentials',
@@ -19,6 +27,8 @@ const ERROR_KEYS: Record<string, string> = {
 
 export default function Auth() {
   const { t } = useTranslation()
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [mode, setMode] = useState<'in' | 'up'>('in')
@@ -36,6 +46,7 @@ export default function Auth() {
 
   function validate(): Errors {
     const e: Errors = {}
+    if (mode === 'up' && !firstName.trim()) e.firstName = t('errFirstNameRequired')
     if (!email.trim()) e.email = t('errEmailRequired')
     else if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.email = t('errEmailInvalid')
     if (!password) e.password = t('errPasswordRequired')
@@ -54,7 +65,10 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithPassword(creds)
       if (error) setErrors({ form: describe(error) })
     } else {
-      const { data, error } = await supabase.auth.signUp(creds)
+      const { data, error } = await supabase.auth.signUp({
+        ...creds,
+        options: { data: { first_name: firstName.trim(), last_name: lastName.trim() } },
+      })
       if (error) setErrors({ form: describe(error) })
       else if (!data.session) setSentTo(creds.email)
     }
@@ -71,7 +85,7 @@ export default function Auth() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-4 py-6 md:max-w-4xl md:flex-row md:items-center md:gap-14">
       <div className="fade-up md:w-1/2">
-        <AuthHero />
+        <AuthHero greetingName={mode === 'in' ? savedName : null} />
       </div>
 
       <div className="fade-up flex flex-col gap-5 md:w-1/2">
@@ -99,6 +113,34 @@ export default function Auth() {
           </div>
         ) : (
           <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+            {mode === 'up' && (
+              <>
+                <div>
+                  <input
+                    autoComplete="given-name"
+                    placeholder={t('firstNameLabel')}
+                    aria-label={t('firstNameLabel')}
+                    aria-invalid={!!errors.firstName}
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className={input}
+                  />
+                  {errors.firstName ? (
+                    <p className="mt-1 px-2 text-sm text-over">{errors.firstName}</p>
+                  ) : (
+                    <p className="mt-1 px-2 text-xs text-muted">{t('firstNameHint')}</p>
+                  )}
+                </div>
+                <input
+                  autoComplete="family-name"
+                  placeholder={t('lastNameLabel')}
+                  aria-label={t('lastNameLabel')}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className={input}
+                />
+              </>
+            )}
             <div>
               <input
                 type="email"

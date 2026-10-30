@@ -4,12 +4,13 @@ import { fmtMoney, parseAmount } from '../lib/format'
 import { useHash } from '../lib/route'
 import { reallocTips } from '../lib/tips'
 import { supabase } from '../lib/supabase'
-import { countsAsSpent, currentMonth, envelopeStats, shiftMonth, type Envelope } from '../lib/types'
+import { countsAsSpent, currentMonth, envelopeStats, shiftMonth, type Envelope, type Profile } from '../lib/types'
 import EnvelopeDetail from './EnvelopeDetail'
 import EnvelopeStrip from './EnvelopeStrip'
 import LanguageSwitch from './LanguageSwitch'
 import IconPicker from './IconPicker'
 import MonthSummary from './MonthSummary'
+import ProfileForm from './ProfileForm'
 import ScriptTitle from './ScriptTitle'
 import TabBar from './TabBar'
 import Tips from './Tips'
@@ -22,7 +23,7 @@ function useSelectedId() {
   return hash.startsWith(PREFIX) ? hash.slice(PREFIX.length) : null
 }
 
-export default function Home({ householdId }: { householdId: string }) {
+export default function Home({ householdId, profile }: { householdId: string; profile: Profile }) {
   const { t, i18n } = useTranslation()
   const nowMonth = currentMonth()
   const [month, setMonth] = useState(nowMonth)
@@ -111,6 +112,7 @@ export default function Home({ householdId }: { householdId: string }) {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-6 md:max-w-3xl md:px-6 xl:max-w-6xl">
+      {profile.firstName && <p className="font-script text-4xl leading-tight">{t('hello', { name: profile.firstName })}</p>}
       <div className="flex items-center justify-between gap-3">
         <TabBar />
         <button onClick={() => supabase.auth.signOut()} className="no-print text-sm text-muted underline">
@@ -197,6 +199,7 @@ export default function Home({ householdId }: { householdId: string }) {
         <NewEnvelope householdId={householdId} month={month} sort={envelopes.length} onAdded={load} />
       </div>
       <InviteCode householdId={householdId} />
+      <ProfileForm profile={profile} />
       <LanguageSwitch />
     </main>
   )

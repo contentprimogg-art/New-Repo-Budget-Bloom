@@ -1,0 +1,85 @@
+name: Déploiement Infomaniak
+
+# Construit l'app et envoie le dossier dist/ sur l'hébergement Infomaniak par SSH (rsync).
+# Secrets GitHub nécessaires (Settings → Secrets and variables → Actions):
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  clés publiques de Supabase, intégrées à la compilation
+#   SSH_HOST, SSH_USER                          connexion SSH de l'hébergement
+#   SSH_PATH                                    dossier du site sur le serveur
+#   SSH_KEY                                     clé privée dédiée au déploiement
+# Tant qu'un secret manque, l'étape de déploiement est ignorée (le build est quand même vérifié).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Vérifier les secrets de déploiement
+        id: check
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        run: |
+          missing=""
+          for name in SSH_HOST SSH_USER SSH_PATH SSH_KEY SUPABASE_URL; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "Secrets manquants:$missing -> déploiement ignoré."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ "${SSH_PATH}" = "/" ] || [ "${SSH_PATH}" = "~" ] || [ "${SSH_PATH}" = "." ]; then
+            echo "SSH_PATH ne doit pas être la racine ou le dossier personnel: choisissez le dossier du site."
+            exit 1
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configurer SSH
+        if: steps.check.outputs.ready == 'true'
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      # Pas de --delete: on n'efface jamais rien sur le serveur (une erreur de chemin ne peut pas vider un dossier).
+      - name: Envoyer le site
+        if: steps.check.outputs.ready == 'true'
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+        run: |
+          rsync -rltvz -e "ssh -i ~/.ssh/deploy_key" dist/ "${SSH_USER}@${SSH_HOST}:${SSH_PATH%/}/"

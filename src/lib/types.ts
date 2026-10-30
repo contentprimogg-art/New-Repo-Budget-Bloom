@@ -12,6 +12,11 @@ export interface Envelope {
   recurring: boolean
 }
 
+export interface Profile {
+  firstName: string | null
+  lastName: string | null
+}
+
 export type ExpenseStatus = 'active' | 'refunded' | 'kept'
 
 export interface Expense {

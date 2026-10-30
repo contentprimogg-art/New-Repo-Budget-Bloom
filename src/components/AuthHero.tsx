@@ -9,7 +9,7 @@ const SLIDES = [
 ]
 
 // Carrousel d'accueil façon appli bancaire: grande carte arrondie, bandeaux blancs en capitales, points de pagination.
-export default function AuthHero() {
+export default function AuthHero({ greetingName }: { greetingName?: string | null }) {
   const { t } = useTranslation()
   const scroller = useRef<HTMLDivElement>(null)
   const touched = useRef(false)
@@ -45,11 +45,11 @@ export default function AuthHero() {
             <div key={s.stage} className="relative size-full shrink-0 snap-center" aria-hidden={i !== index}>
               <Garden stage={s.stage} />
               <div className="absolute bottom-5 left-0 flex -rotate-2 flex-col items-start gap-1.5">
-                <span className="rounded-r-lg bg-surface px-4 py-1.5 text-xl font-extrabold uppercase tracking-tight text-accent-strong shadow-sm">
-                  {t(s.a)}
+                <span className="max-w-[90%] truncate rounded-r-lg bg-surface px-4 py-1.5 text-xl font-extrabold uppercase tracking-tight text-accent-strong shadow-sm">
+                  {i === 0 && greetingName ? t('authGreeting', { name: greetingName }) : t(s.a)}
                 </span>
                 <span className="ml-4 rounded-lg bg-surface px-4 py-1.5 text-xl font-extrabold uppercase tracking-tight text-accent-strong shadow-sm">
-                  {t(s.b)}
+                  {i === 0 && greetingName ? t('authGreetingSub') : t(s.b)}
                 </span>
               </div>
             </div>
