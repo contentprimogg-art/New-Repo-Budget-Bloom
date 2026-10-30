@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
-import { fmtDate, fmtMoney, parseAmount, todayIso } from '../lib/format'
+import { defaultDateFor, fmtDate, fmtMoney, parseAmount, todayIso } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import EnvelopeTable from './EnvelopeTable'
 import { countsAsSpent, envelopeStats, type Envelope, type Expense, type ExpenseStatus } from '../lib/types'
@@ -285,7 +285,7 @@ function NewTransaction({ envelope, onAdded }: { envelope: Envelope; onAdded: ()
   const { t } = useTranslation()
   const [note, setNote] = useState('')
   const [amount, setAmount] = useState('')
-  const [date, setDate] = useState(todayIso())
+  const [date, setDate] = useState(defaultDateFor(envelope.month))
   const [error, setError] = useState<string | null>(null)
 
   async function add(e: React.FormEvent) {
@@ -298,11 +298,11 @@ function NewTransaction({ envelope, onAdded }: { envelope: Envelope; onAdded: ()
       envelope_id: envelope.id,
       amount: value,
       note: note.trim() || null,
-      spent_on: date || todayIso(),
+      spent_on: date || defaultDateFor(envelope.month),
     })
     setNote('')
     setAmount('')
-    setDate(todayIso())
+    setDate(defaultDateFor(envelope.month))
     onAdded()
   }
 

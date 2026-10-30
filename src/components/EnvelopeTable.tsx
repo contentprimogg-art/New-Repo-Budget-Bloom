@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { fmtMoney, parseAmount, todayIso } from '../lib/format'
+import { defaultDateFor, fmtMoney, parseAmount, todayIso } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import { countsAsSpent, type Envelope, type Expense, type ExpenseStatus } from '../lib/types'
 import Select, { type Align } from './Select'
@@ -338,7 +338,7 @@ function NewRow({
 }) {
   const { t } = useTranslation()
   const [note, setNote] = useState('')
-  const [date, setDate] = useState(todayIso())
+  const [date, setDate] = useState(defaultDateFor(envelope.month))
   const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
   const noteRef = useRef<HTMLInputElement>(null)
@@ -353,7 +353,7 @@ function NewRow({
       envelope_id: envelope.id,
       amount: value,
       note: note.trim() || null,
-      spent_on: date || todayIso(),
+      spent_on: date || defaultDateFor(envelope.month),
     })
     setBusy(false)
     if (error) return onError(`${t('errSave')} (${error.message})`)

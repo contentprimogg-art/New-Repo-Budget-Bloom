@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { fmtMoney, parseAmount } from '../lib/format'
+import { defaultDateFor, fmtMoney, parseAmount } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import type { Envelope, EnvelopeStats } from '../lib/types'
 
@@ -34,6 +34,7 @@ export default function EnvelopeStrip({
       envelope_id: envelope.id,
       amount: value,
       note: note.trim() || null,
+      spent_on: defaultDateFor(envelope.month),
     })
     setBusy(false)
     if (error) return setFormError(`${t('errSave')} (${error.message})`)

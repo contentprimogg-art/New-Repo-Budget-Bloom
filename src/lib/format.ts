@@ -6,6 +6,12 @@ export const fmtDate = (iso: string, lng: string) =>
 
 export const parseAmount = (s: string) => Number(s.replace(/\s/g, '').replace(',', '.'))
 
+// Date proposée par défaut pour une dépense: aujourd'hui si on est dans ce mois, sinon le 1er du mois affiché.
+export const defaultDateFor = (month: string) => {
+  const today = todayIso()
+  return today.startsWith(month) ? today : `${month}-01`
+}
+
 export const todayIso = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
