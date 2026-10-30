@@ -74,8 +74,7 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           # Windows enregistre les clés avec des fins de ligne CRLF, que Linux refuse: on les retire.
-          printf '%s
-' "$SSH_KEY" | tr -d '' > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
           echo "Empreinte de la clé contenue dans le secret SSH_KEY (à comparer avec celle de votre fichier .pub):"
