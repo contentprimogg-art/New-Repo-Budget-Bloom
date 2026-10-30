@@ -68,13 +68,23 @@ jobs:
         if: steps.check.outputs.ready == 'true'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          # Windows enregistre les clés avec des fins de ligne CRLF, que Linux refuse: on les retire.
+          printf '%s
+' "$SSH_KEY" | tr -d '' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          echo "Empreinte de la clé contenue dans le secret SSH_KEY (à comparer avec celle de votre fichier .pub):"
+          ssh-keygen -lf ~/.ssh/deploy_key || { echo "::error::SSH_KEY est illisible: collez la clé privée complète (BEGIN ... END)."; exit 1; }
+          echo "Test de connexion en tant que ${SSH_USER}..."
+          if ! ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes "${SSH_USER}@${SSH_HOST}" 'echo connexion-ok'; then
+            echo "::error::Le serveur refuse la clé. La clé publique correspondante n'est pas autorisée pour cet utilisateur chez Infomaniak."
+            exit 1
+          fi
 
       # Pas de --delete: on n'efface jamais rien sur le serveur (une erreur de chemin ne peut pas vider un dossier).
       - name: Envoyer le site
@@ -84,4 +94,4 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PATH: ${{ secrets.SSH_PATH }}
         run: |
-          rsync -rltvz -e "ssh -i ~/.ssh/deploy_key" dist/ "${SSH_USER}@${SSH_HOST}:${SSH_PATH%/}/"
+          rsync -rltvz -e "ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes" dist/ "${SSH_USER}@${SSH_HOST}:${SSH_PATH%/}/"
