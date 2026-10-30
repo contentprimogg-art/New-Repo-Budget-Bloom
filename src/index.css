@@ -10,9 +10,9 @@
   --accent: #e88ab4;
   --accent-strong: #e46a9e;
   --accent-soft: #fbe6ef;
-  /* Fond « carnet »: papier chaud quadrillé, très discret. */
-  --paper: #f5efe3;
-  --paper-line: rgb(150 118 86 / 0.13);
+  /* Fond papier chaud, avec un grain léger par-dessus (voir body::before). */
+  --paper: #f8f4ed;
+  --grain-opacity: 0.55;
   --ok: #7fb88f;
   --over: #d64550;
   /* Couleurs de graphiques (paire validée: contraste normal et daltonisme) */
@@ -40,20 +40,24 @@ body,
   min-height: 100dvh;
 }
 
-/* Fond papier: très léger grain, sans image externe. */
 body {
   background-color: var(--paper);
-  background-image:
-    linear-gradient(var(--paper-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--paper-line) 1px, transparent 1px),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .3 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   color: var(--text);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background-size:
-    28px 28px,
-    28px 28px,
-    220px 220px;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Grain de papier en surimpression: quasi invisible, il adoucit seulement l'aplat.
+   Il ne capte aucun clic (pointer-events) et disparaît à l'impression. Réglage: --grain-opacity. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-size: 200px 200px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .2 0 0 0 0 .18 0 0 0 .14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* Tailwind v4 remet le curseur par défaut sur les boutons */
@@ -150,6 +154,9 @@ button[role='combobox']:not(:disabled):active {
 }
 
 @media print {
+  body::before {
+    display: none;
+  }
   .no-print {
     display: none !important;
   }
