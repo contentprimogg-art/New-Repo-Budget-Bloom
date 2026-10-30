@@ -8,7 +8,9 @@ import { countsAsSpent, currentMonth, envelopeStats, shiftMonth, type Envelope }
 import EnvelopeDetail from './EnvelopeDetail'
 import EnvelopeStrip from './EnvelopeStrip'
 import LanguageSwitch from './LanguageSwitch'
+import IconPicker from './IconPicker'
 import MonthSummary from './MonthSummary'
+import ScriptTitle from './ScriptTitle'
 import TabBar from './TabBar'
 import Tips from './Tips'
 
@@ -159,6 +161,7 @@ export default function Home({ householdId }: { householdId: string }) {
           <p className="mt-1 text-xs opacity-80">{loadError}</p>
         </div>
       )}
+      {loaded && !loadError && <ScriptTitle>{t('summaryTitle')}</ScriptTitle>}
       {loaded && !loadError && (
         <MonthSummary
           key={month}
@@ -181,6 +184,7 @@ export default function Home({ householdId }: { householdId: string }) {
       {loaded && !loadError && envelopes.length === 0 && (
         <p className="text-muted">{month === nowMonth ? t('noEnvelopes') : t('noEnvelopesPast')}</p>
       )}
+      <ScriptTitle>{t('envelopes')}</ScriptTitle>
       <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
         {envelopes.map((e) => (
           <EnvelopeStrip
@@ -253,6 +257,7 @@ function NewEnvelope({
   const [name, setName] = useState('')
   const [budget, setBudget] = useState('')
   const [recurring, setRecurring] = useState(true)
+  const [look, setLook] = useState<{ icon: string | null; color: string | null }>({ icon: null, color: null })
   const [errors, setErrors] = useState<{ name?: string; budget?: string; form?: string }>({})
   const [busy, setBusy] = useState(false)
 
@@ -268,11 +273,12 @@ function NewEnvelope({
     setBusy(true)
     const { error } = await supabase
       .from('envelopes')
-      .insert({ household_id: householdId, month, name: name.trim(), budget: value, sort, recurring })
+      .insert({ household_id: householdId, month, name: name.trim(), budget: value, sort, recurring, ...look })
     setBusy(false)
     if (error) return setErrors({ form: `${t('errSave')} (${error.message})` })
     setName('')
     setBudget('')
+    setLook({ icon: null, color: null })
     onAdded()
   }
 
@@ -305,12 +311,13 @@ function NewEnvelope({
         />
         {errors.budget && <p className="mt-1 px-1 text-sm text-over">{errors.budget}</p>}
       </div>
+      <IconPicker icon={look.icon} color={look.color} onChange={setLook} />
       <label className="flex items-center gap-2 px-1 text-sm text-muted">
         <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
         {t('recurringLabel')}
       </label>
       {errors.form && <p className="px-1 text-sm text-over">{errors.form}</p>}
-      <button disabled={busy} className="rounded-xl bg-accent-strong px-4 py-2 font-medium text-white">
+      <button disabled={busy} className="rounded-full bg-accent-strong px-4 py-2 font-medium text-white">
         {t('addEnvelope')}
       </button>
     </form>

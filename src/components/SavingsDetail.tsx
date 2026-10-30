@@ -12,10 +12,11 @@ import {
 import { supabase } from '../lib/supabase'
 import ConfirmButton from './ConfirmButton'
 import MilestoneBar from './MilestoneBar'
+import ScriptTitle from './ScriptTitle'
 import Select from './Select'
 
 const INPUT = 'w-full rounded-xl border border-border bg-surface px-3 py-2'
-const BUTTON = 'rounded-xl bg-accent-strong px-4 py-2 font-medium text-white'
+const BUTTON = 'rounded-full bg-accent-strong px-4 py-2 font-medium text-white'
 const round = (n: number) => Math.round(n * 100) / 100
 
 export default function SavingsDetail({
@@ -119,7 +120,7 @@ export default function SavingsDetail({
           )}
           <Milestones envelope={envelope} householdId={householdId} data={data} onChanged={reload} />
           <section className="flex flex-col gap-2">
-            <h2 className="font-medium">{t('movements')}</h2>
+            <ScriptTitle>{t('movements')}</ScriptTitle>
             {entriesError && <p className="text-sm text-over">{entriesError}</p>}
             {!entriesError && entries.length === 0 && <p className="text-sm text-muted">{t('noMovements')}</p>}
             <ul className="flex flex-col gap-2">
@@ -349,7 +350,7 @@ function SubEnvelopes({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-medium">{t('subEnvelopes')}</h2>
+      <ScriptTitle>{t('subEnvelopes')}</ScriptTitle>
       {children.length === 0 && <p className="text-sm text-muted">{t('noSubEnvelopes')}</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         {children.map((c) => {
@@ -489,7 +490,7 @@ function Milestones({
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="font-medium">{t('milestones')}</h2>
+      <ScriptTitle>{t('milestones')}</ScriptTitle>
       <p className="text-sm text-muted">{t('milestonesHint')}</p>
       <ul className="flex flex-wrap gap-2">
         {mine.map((m) => (

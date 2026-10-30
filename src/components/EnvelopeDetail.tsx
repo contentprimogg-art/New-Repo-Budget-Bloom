@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase'
 import { envelopeTips, type Sibling } from '../lib/tips'
 import EnvelopeTable from './EnvelopeTable'
 import KeepDialog from './KeepDialog'
+import IconPicker, { EnvelopeBadge } from './IconPicker'
+import ScriptTitle from './ScriptTitle'
 import Tips from './Tips'
 import { countsAsSpent, currentMonth, envelopeStats, type Envelope, type Expense, type ExpenseStatus } from '../lib/types'
 
@@ -186,7 +188,7 @@ export default function EnvelopeDetail({
 
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-medium">{t('transactions')}</h2>
+          <ScriptTitle>{t('transactions')}</ScriptTitle>
           <ViewSwitch view={view} onChange={changeView} />
         </div>
         {loaded && expenses.length === 0 && view !== 'table' && <p className="text-sm text-muted">{t('noTransactions')}</p>}
@@ -211,6 +213,7 @@ function EnvelopeTitle({ envelope, onSaved }: { envelope: Envelope; onSaved: () 
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(envelope.name)
   const [budget, setBudget] = useState(String(envelope.budget))
+  const [look, setLook] = useState({ icon: envelope.icon, color: envelope.color })
   const [error, setError] = useState<string | null>(null)
 
   async function toggleRecurring(value: boolean) {
@@ -226,7 +229,7 @@ function EnvelopeTitle({ envelope, onSaved }: { envelope: Envelope; onSaved: () 
     if (!(value >= 0) || budget.trim() === '') return setError(t('errAmount'))
     const { error } = await supabase
       .from('envelopes')
-      .update({ name: name.trim(), budget: value })
+      .update({ name: name.trim(), budget: value, icon: look.icon, color: look.color })
       .eq('id', envelope.id)
     if (error) return setError(`${t('errSave')} (${error.message})`)
     setError(null)
@@ -238,11 +241,15 @@ function EnvelopeTitle({ envelope, onSaved }: { envelope: Envelope; onSaved: () 
     return (
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-2xl font-semibold">{envelope.name}</h1>
+          <div className="flex items-center gap-3">
+            <EnvelopeBadge icon={envelope.icon} color={envelope.color} className="size-12 text-2xl" />
+            <h1 className="text-2xl font-semibold">{envelope.name}</h1>
+          </div>
           <button
             onClick={() => {
               setName(envelope.name)
               setBudget(String(envelope.budget))
+              setLook({ icon: envelope.icon, color: envelope.color })
               setEditing(true)
             }}
             className="no-print text-sm text-accent-strong underline"
@@ -280,9 +287,10 @@ function EnvelopeTitle({ envelope, onSaved }: { envelope: Envelope; onSaved: () 
         onChange={(e) => setBudget(e.target.value)}
         className="rounded-xl border border-border bg-surface px-3 py-2"
       />
+      <IconPicker icon={look.icon} color={look.color} onChange={setLook} />
       {error && <p className="px-1 text-sm text-over">{error}</p>}
       <div className="flex gap-2">
-        <button className="flex-1 rounded-xl bg-accent-strong px-4 py-2 font-medium text-white">{t('save')}</button>
+        <button className="flex-1 rounded-full bg-accent-strong px-4 py-2 font-medium text-white">{t('save')}</button>
         <button
           type="button"
           onClick={() => {
@@ -355,7 +363,7 @@ function NewTransaction({ envelope, onAdded }: { envelope: Envelope; onAdded: ()
         />
       </div>
       {error && <p className="px-1 text-sm text-over">{error}</p>}
-      <button className="rounded-xl bg-accent-strong px-4 py-2 font-medium text-white">{t('addExpense')}</button>
+      <button className="rounded-full bg-accent-strong px-4 py-2 font-medium text-white">{t('addExpense')}</button>
     </form>
   )
 }
@@ -444,7 +452,7 @@ function TransactionRow({
         className="rounded-xl border border-border px-3 py-2"
       />
       <div className="flex gap-2">
-        <button className="flex-1 rounded-xl bg-accent-strong px-3 py-2 text-white">{t('save')}</button>
+        <button className="flex-1 rounded-full bg-accent-strong px-3 py-2 text-white">{t('save')}</button>
         <button
           type="button"
           onClick={() => setEditing(false)}

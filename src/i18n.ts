@@ -19,7 +19,7 @@ const resources = {
       remaining: 'Restant',
       spent: 'Dépensé',
       budget: 'Budget',
-      overBy: 'Dépassement de {{amount}}',
+      overBy: 'Dépassé de {{amount}}',
       addExpense: 'Ajouter une dépense',
       startBalance: 'Solde de début de mois',
       endBalance: 'Solde de fin de mois',

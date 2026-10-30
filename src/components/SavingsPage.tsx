@@ -137,7 +137,7 @@ function NewSavings({ householdId, sort, onAdded }: { householdId: string; sort:
         {errors.target && <p className="mt-1 px-1 text-sm text-over">{errors.target}</p>}
       </div>
       {errors.form && <p className="px-1 text-sm text-over">{errors.form}</p>}
-      <button disabled={busy} className="rounded-xl bg-accent-strong px-4 py-2 font-medium text-white">
+      <button disabled={busy} className="rounded-full bg-accent-strong px-4 py-2 font-medium text-white">
         {t('addSavings')}
       </button>
     </form>

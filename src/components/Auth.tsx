@@ -2,7 +2,9 @@ import type { AuthError } from '@supabase/supabase-js'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
+import AuthHero from './AuthHero'
 import LanguageSwitch from './LanguageSwitch'
+import ScriptTitle from './ScriptTitle'
 
 type Errors = { email?: string; password?: string; form?: string }
 
@@ -64,73 +66,83 @@ export default function Auth() {
     setErrors({})
   }
 
-  const input = 'w-full rounded-xl border border-border bg-surface px-4 py-3'
+  const input = 'w-full rounded-2xl border border-border bg-surface px-4 py-3'
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4">
-      <div className="fade-up flex flex-col items-center gap-2">
-        <img src="/favicon.svg" alt="" className="size-20 rounded-2xl" />
-        <h1 className="text-2xl font-semibold">{t('appName')}</h1>
-        <p className="text-sm text-muted">{mode === 'in' ? t('welcomeBack') : t('welcomeNew')}</p>
+    <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-4 py-6 md:max-w-4xl md:flex-row md:items-center md:gap-14">
+      <div className="fade-up md:w-1/2">
+        <AuthHero />
       </div>
 
-      {sentTo ? (
-        <div role="status" className="fade-up flex flex-col gap-3 rounded-2xl bg-accent-soft p-5 text-center">
-          <p className="font-medium">{t('checkInbox')}</p>
-          <p className="text-sm text-muted">{t('confirmationSent', { email: sentTo })}</p>
-          <button
-            type="button"
-            onClick={() => {
-              setSentTo(null)
-              setMode('in')
-            }}
-            className="text-sm text-accent-strong underline"
-          >
-            {t('backToSignIn')}
-          </button>
+      <div className="fade-up flex flex-col gap-5 md:w-1/2">
+        <div className="text-center md:text-left">
+          <ScriptTitle as="h1" className="text-6xl">
+            Budget Bloom
+          </ScriptTitle>
+          <p className="mt-1 text-sm text-muted">{mode === 'in' ? t('welcomeBack') : t('welcomeNew')}</p>
         </div>
-      ) : (
-        <form onSubmit={submit} noValidate className="fade-up flex flex-col gap-3">
-          <div>
-            <input
-              type="email"
-              autoComplete="email"
-              placeholder={t('email')}
-              aria-label={t('email')}
-              aria-invalid={!!errors.email}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={input}
-            />
-            {errors.email && <p className="mt-1 px-1 text-sm text-over">{errors.email}</p>}
+
+        {sentTo ? (
+          <div role="status" className="flex flex-col gap-3 rounded-3xl bg-accent-soft p-5 text-center">
+            <p className="font-medium">{t('checkInbox')}</p>
+            <p className="text-sm text-muted">{t('confirmationSent', { email: sentTo })}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setSentTo(null)
+                setMode('in')
+              }}
+              className="text-sm text-accent-strong underline"
+            >
+              {t('backToSignIn')}
+            </button>
           </div>
-          <div>
-            <input
-              type="password"
-              autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
-              placeholder={t('password')}
-              aria-label={t('password')}
-              aria-invalid={!!errors.password}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={input}
-            />
-            {errors.password && <p className="mt-1 px-1 text-sm text-over">{errors.password}</p>}
-          </div>
-          {errors.form && (
-            <p role="alert" className="rounded-xl bg-over/10 px-4 py-3 text-sm text-over">
-              {errors.form}
-            </p>
-          )}
-          <button disabled={busy} className="rounded-xl bg-accent-strong px-4 py-3 font-medium text-white">
-            {busy ? t('loading') : mode === 'in' ? t('signIn') : t('signUp')}
-          </button>
-          <button type="button" onClick={switchMode} className="text-sm text-muted underline">
-            {mode === 'in' ? t('noAccountYet') : t('alreadyHaveAccount')}
-          </button>
-        </form>
-      )}
-      <LanguageSwitch />
+        ) : (
+          <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+            <div>
+              <input
+                type="email"
+                autoComplete="email"
+                placeholder={t('email')}
+                aria-label={t('email')}
+                aria-invalid={!!errors.email}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={input}
+              />
+              {errors.email && <p className="mt-1 px-2 text-sm text-over">{errors.email}</p>}
+            </div>
+            <div>
+              <input
+                type="password"
+                autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
+                placeholder={t('password')}
+                aria-label={t('password')}
+                aria-invalid={!!errors.password}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={input}
+              />
+              {errors.password && <p className="mt-1 px-2 text-sm text-over">{errors.password}</p>}
+            </div>
+            {errors.form && (
+              <p role="alert" className="rounded-2xl bg-over/10 px-4 py-3 text-sm text-over">
+                {errors.form}
+              </p>
+            )}
+            <button
+              disabled={busy}
+              className="mt-1 rounded-full bg-accent-strong px-6 py-3.5 text-base font-semibold text-white shadow-md shadow-accent/30"
+            >
+              {busy ? t('loading') : mode === 'in' ? t('signIn') : t('signUp')}
+            </button>
+            <button type="button" onClick={switchMode} className="text-sm text-muted underline">
+              {mode === 'in' ? t('noAccountYet') : t('alreadyHaveAccount')}
+            </button>
+          </form>
+        )}
+        <LanguageSwitch />
+      </div>
     </main>
   )
 }
