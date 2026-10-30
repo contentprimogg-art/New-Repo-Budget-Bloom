@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
-import { defaultDateFor, fmtDate, fmtMoney, parseAmount, todayIso } from '../lib/format'
+import { defaultDateFor, fmtDate, fmtMoney, parseAmount } from '../lib/format'
+import { settleExpense, syncLinkedAmount } from '../lib/savings'
 import { supabase } from '../lib/supabase'
+import { envelopeTips, type Sibling } from '../lib/tips'
 import EnvelopeTable from './EnvelopeTable'
-import { countsAsSpent, envelopeStats, type Envelope, type Expense, type ExpenseStatus } from '../lib/types'
+import KeepDialog from './KeepDialog'
+import Tips from './Tips'
+import { countsAsSpent, currentMonth, envelopeStats, type Envelope, type Expense, type ExpenseStatus } from '../lib/types'
 
 type DetailView = 'list' | 'grid' | 'table'
 const VIEW_KEY = 'detailView'
@@ -44,10 +48,12 @@ function ViewSwitch({ view, onChange }: { view: DetailView; onChange: (v: Detail
 
 export default function EnvelopeDetail({
   envelope,
+  siblings = [],
   onChanged,
   onClose,
 }: {
   envelope: Envelope
+  siblings?: Sibling[]
   onChanged: () => void
   onClose: () => void
 }) {
@@ -164,6 +170,17 @@ export default function EnvelopeDetail({
         </dl>
       </section>
 
+      <Tips
+        tips={envelopeTips({
+          envelope,
+          expenses,
+          siblings,
+          nowMonth: currentMonth(),
+          today: new Date(),
+          unnamed: t('unnamed'),
+          money,
+        })}
+      />
       {view !== 'table' && <NewTransaction envelope={envelope} onAdded={refresh} />}
         </div>
 
@@ -179,7 +196,7 @@ export default function EnvelopeDetail({
           ) : (
             <ul className={view === 'grid' ? 'grid grid-cols-2 gap-2 md:grid-cols-3' : 'flex flex-col gap-2'}>
               {expenses.map((e) => (
-                <TransactionRow key={e.id} expense={e} view={view} onChanged={refresh} />
+                <TransactionRow key={e.id} householdId={envelope.household_id} expense={e} view={view} onChanged={refresh} />
               ))}
             </ul>
           ))}
@@ -344,10 +361,12 @@ function NewTransaction({ envelope, onAdded }: { envelope: Envelope; onAdded: ()
 }
 
 function TransactionRow({
+  householdId,
   expense,
   view,
   onChanged,
 }: {
+  householdId: string
   expense: Expense
   view: Exclude<DetailView, 'table'>
   onChanged: () => void
@@ -359,6 +378,7 @@ function TransactionRow({
   const [invalid, setInvalid] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [settling, setSettling] = useState(false)
+  const [picking, setPicking] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
   const fail = (message: string) => setFailure(`${t('errSave')} (${message})`)
@@ -372,6 +392,7 @@ function TransactionRow({
       .update({ note: note.trim() || null, amount: value })
       .eq('id', expense.id)
     if (error) return fail(error.message)
+    await syncLinkedAmount(expense.id, value)
     setEditing(false)
     setInvalid(false)
     setFailure(null)
@@ -384,13 +405,17 @@ function TransactionRow({
     onChanged()
   }
 
-  async function setStatus(status: ExpenseStatus) {
-    const { error } = await supabase
-      .from('expenses')
-      .update({ status, settled_on: status === 'active' ? null : todayIso() })
-      .eq('id', expense.id)
-    if (error) return fail(error.message)
+  async function setStatus(status: ExpenseStatus, savingsId?: string | null) {
+    const error = await settleExpense({
+      householdId,
+      expense,
+      status,
+      savingsId,
+      fallbackNote: t('refundedKeptNote'),
+    })
+    if (error) return fail(error)
     setSettling(false)
+    setPicking(false)
     setFailure(null)
     onChanged()
   }
@@ -453,7 +478,7 @@ function TransactionRow({
           <button onClick={() => setStatus('refunded')} className="rounded-full bg-accent-soft px-3 py-1 text-accent-strong">
             {t('refundFree')}
           </button>
-          <button onClick={() => setStatus('kept')} className="rounded-full bg-accent-soft px-3 py-1 text-accent-strong">
+          <button onClick={() => setPicking(true)} className="rounded-full bg-accent-soft px-3 py-1 text-accent-strong">
             {t('refundKeep')}
           </button>
           <button onClick={() => setSettling(false)} className="text-muted underline">
@@ -478,6 +503,13 @@ function TransactionRow({
         </button>
       )}
       {failure && <span className="w-full text-over">{failure}</span>}
+      {picking && (
+        <KeepDialog
+          householdId={householdId}
+          onChoose={(savingsId) => void setStatus('kept', savingsId)}
+          onCancel={() => setPicking(false)}
+        />
+      )}
     </div>
   )
 

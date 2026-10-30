@@ -22,6 +22,7 @@ Les migrations sont dans `supabase/migrations/`. À exécuter **dans l'ordre, un
 1. `0001_init.sql`: foyers, enveloppes, dépenses, soldes, sécurité par ligne (RLS)
 2. `0002_expense_status.sql`: statut de remboursement
 3. `0003_recurring_envelopes.sql`: enveloppes récurrentes
+4. `0004_savings.sql`: épargne (enveloppes, sous-enveloppes, paliers, mouvements)
 
 Le modèle d'e-mail de confirmation est dans `supabase/email-templates/` (à coller dans Authentication → Emails → Templates; nécessite un SMTP personnalisé).
 

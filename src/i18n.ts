@@ -1,5 +1,6 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
+import { features } from './locales/features'
 
 const resources = {
   fr: {
@@ -215,6 +216,10 @@ const resources = {
     },
   },
 }
+
+// Les textes des nouvelles fonctions (épargne, conseils, bilan) vivent dans locales/features.ts.
+Object.assign(resources.fr.translation, features.fr)
+Object.assign(resources.en.translation, features.en)
 
 const saved = (() => {
   try {

@@ -20,6 +20,7 @@ export default function Select<T extends string>({
   onChange,
   label,
   align = 'left',
+  variant = 'cell',
   className = '',
   ...dataProps
 }: {
@@ -28,6 +29,8 @@ export default function Select<T extends string>({
   onChange: (value: T) => void
   label: string
   align?: Align
+  /** « cell »: sans bordure au repos (tableau). « field »: champ de formulaire avec bordure. */
+  variant?: 'cell' | 'field'
   className?: string
   'data-row'?: number
   'data-col'?: string
@@ -124,7 +127,11 @@ export default function Select<T extends string>({
         onKeyDown={onKeyDown}
         onKeyUp={(e) => e.key === ' ' && e.preventDefault()}
         className={`flex w-full items-center gap-2 border-2 px-[9px] ${shape} ${
-          open ? 'border-accent-strong bg-surface' : 'border-transparent hover:border-accent'
+          open
+            ? 'border-accent-strong bg-surface'
+            : variant === 'field'
+              ? 'border-border bg-surface hover:border-accent'
+              : 'border-transparent hover:border-accent'
         } ${className}`}
         {...dataProps}
       >

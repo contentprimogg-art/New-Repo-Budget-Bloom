@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { defaultDateFor, fmtMoney, parseAmount, todayIso } from '../lib/format'
+import { defaultDateFor, fmtMoney, parseAmount } from '../lib/format'
+import { settleExpense, syncLinkedAmount } from '../lib/savings'
 import { supabase } from '../lib/supabase'
 import { countsAsSpent, type Envelope, type Expense, type ExpenseStatus } from '../lib/types'
+import KeepDialog from './KeepDialog'
 import Select, { type Align } from './Select'
 
 type Col = 'note' | 'date' | 'amount' | 'status'
@@ -113,6 +115,7 @@ export default function EnvelopeTable({
   const root = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [keeping, setKeeping] = useState<Expense | null>(null)
   const [aligns, setAligns] = useState<Aligns>(readAligns)
 
   function cycleAlign(col: Col) {
@@ -144,8 +147,20 @@ export default function EnvelopeTable({
   const patch = (id: string, values: Record<string, unknown>) =>
     run(supabase.from('expenses').update(values).eq('id', id))
 
-  const setStatus = (e: Expense, status: ExpenseStatus) =>
-    patch(e.id, { status, settled_on: status === 'active' ? null : todayIso() })
+  async function setStatus(e: Expense, status: ExpenseStatus, savingsId?: string | null) {
+    const failure = await settleExpense({
+      householdId: envelope.household_id,
+      expense: e,
+      status,
+      savingsId,
+      fallbackNote: t('refundedKeptNote'),
+    })
+    if (failure) setError(`${t('errSave')} (${failure})`)
+    else {
+      setError(null)
+      onChanged()
+    }
+  }
 
   const remove = (id: string) => {
     setConfirmId(null)
@@ -251,7 +266,7 @@ export default function EnvelopeTable({
                           setError(t('errAmount'))
                           return false
                         }
-                        void patch(e.id, { amount: n })
+                        void patch(e.id, { amount: n }).then(() => syncLinkedAmount(e.id, n))
                         return true
                       }}
                       onEnter={goDown}
@@ -265,7 +280,7 @@ export default function EnvelopeTable({
                       value={e.status}
                       options={statusOptions}
                       align={aligns.status}
-                      onChange={(status) => void setStatus(e, status)}
+                      onChange={(status) => (status === 'kept' ? setKeeping(e) : void setStatus(e, status))}
                       className={settled ? 'font-medium text-accent-strong' : 'text-muted'}
                     />
                   </td>
@@ -318,6 +333,16 @@ export default function EnvelopeTable({
         </table>
       </div>
       <p className="no-print px-1 text-xs text-muted">{t('tableHint')}</p>
+      {keeping && (
+        <KeepDialog
+          householdId={envelope.household_id}
+          onChoose={(savingsId) => {
+            void setStatus(keeping, 'kept', savingsId)
+            setKeeping(null)
+          }}
+          onCancel={() => setKeeping(null)}
+        />
+      )}
     </div>
   )
 }

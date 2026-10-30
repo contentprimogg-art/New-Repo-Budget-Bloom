@@ -1,23 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { parseAmount } from '../lib/format'
+import { fmtMoney, parseAmount } from '../lib/format'
+import { useHash } from '../lib/route'
+import { reallocTips } from '../lib/tips'
 import { supabase } from '../lib/supabase'
 import { countsAsSpent, currentMonth, envelopeStats, shiftMonth, type Envelope } from '../lib/types'
 import EnvelopeDetail from './EnvelopeDetail'
 import EnvelopeStrip from './EnvelopeStrip'
 import LanguageSwitch from './LanguageSwitch'
 import MonthSummary from './MonthSummary'
+import TabBar from './TabBar'
+import Tips from './Tips'
 
 const PREFIX = '#/envelope/'
 
 // Navigation par hash: le bouton « retour » du téléphone ferme le détail.
 function useSelectedId() {
-  const [hash, setHash] = useState(window.location.hash)
-  useEffect(() => {
-    const on = () => setHash(window.location.hash)
-    window.addEventListener('hashchange', on)
-    return () => window.removeEventListener('hashchange', on)
-  }, [])
+  const hash = useHash()
   return hash.startsWith(PREFIX) ? hash.slice(PREFIX.length) : null
 }
 
@@ -97,6 +96,9 @@ export default function Home({ householdId }: { householdId: string }) {
     return (
       <EnvelopeDetail
         envelope={selected}
+        siblings={envelopes
+          .filter((e) => e.id !== selected.id)
+          .map((e) => ({ name: e.name, remaining: e.budget - (spentBy[e.id] ?? 0) }))}
         onChanged={load}
         onClose={() => {
           window.location.hash = ''
@@ -107,6 +109,12 @@ export default function Home({ householdId }: { householdId: string }) {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-6 md:max-w-3xl md:px-6 xl:max-w-6xl">
+      <div className="flex items-center justify-between gap-3">
+        <TabBar />
+        <button onClick={() => supabase.auth.signOut()} className="no-print text-sm text-muted underline">
+          {t('signOut')}
+        </button>
+      </div>
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1">
           <button
@@ -136,9 +144,6 @@ export default function Home({ householdId }: { householdId: string }) {
             </button>
           )}
         </div>
-        <button onClick={() => supabase.auth.signOut()} className="no-print text-sm text-muted underline">
-          {t('signOut')}
-        </button>
       </header>
       {rolled > 0 && month === nowMonth && (
         <p className="no-print flex items-center justify-between gap-3 rounded-xl bg-accent-soft px-4 py-3 text-sm">
@@ -162,6 +167,15 @@ export default function Home({ householdId }: { householdId: string }) {
           totalBudget={envelopes.reduce((sum, e) => sum + e.budget, 0)}
           totalSpent={envelopes.reduce((sum, e) => sum + (spentBy[e.id] ?? 0), 0)}
           totalOver={envelopes.reduce((sum, e) => sum + Math.max(0, (spentBy[e.id] ?? 0) - e.budget), 0)}
+        />
+      )}
+      {loaded && !loadError && (
+        <Tips
+          title={t('tipsOverTitle')}
+          tips={reallocTips(
+            envelopes.map((e) => ({ name: e.name, budget: e.budget, spent: spentBy[e.id] ?? 0 })),
+            (n) => fmtMoney(n, i18n.language),
+          )}
         />
       )}
       {loaded && !loadError && envelopes.length === 0 && (

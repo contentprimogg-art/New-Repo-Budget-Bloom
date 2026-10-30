@@ -12,6 +12,9 @@
   --accent-soft: #fbe6ef;
   --ok: #7fb88f;
   --over: #d64550;
+  /* Couleurs de graphiques (paire validée: contraste normal et daltonisme) */
+  --chart-1: var(--accent-strong);
+  --chart-2: #6c8ed6;
 }
 
 @theme inline {

@@ -4,6 +4,11 @@ export const fmtMoney = (n: number, lng: string) =>
 export const fmtDate = (iso: string, lng: string) =>
   new Intl.DateTimeFormat(lng, { day: 'numeric', month: 'short' }).format(new Date(`${iso}T12:00:00`))
 
+export const fmtMonth = (month: string, lng: string, style: 'long' | 'short' = 'long') =>
+  new Intl.DateTimeFormat(lng, style === 'long' ? { month: 'long', year: 'numeric' } : { month: 'short', year: '2-digit' }).format(
+    new Date(`${month}-01T12:00:00`),
+  )
+
 export const parseAmount = (s: string) => Number(s.replace(/\s/g, '').replace(',', '.'))
 
 // Date proposée par défaut pour une dépense: aujourd'hui si on est dans ce mois, sinon le 1er du mois affiché.
