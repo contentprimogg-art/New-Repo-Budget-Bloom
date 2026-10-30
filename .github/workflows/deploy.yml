@@ -3,6 +3,7 @@ name: Déploiement Infomaniak
 # Construit l'app et envoie le dossier dist/ sur l'hébergement Infomaniak par SSH (rsync).
 # Secrets GitHub nécessaires (Settings → Secrets and variables → Actions):
 #   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  clés publiques de Supabase, intégrées à la compilation
+#                                               (au choix: secrets OU variables GitHub, ce ne sont pas des secrets)
 #   SSH_HOST, SSH_USER                          connexion SSH de l'hébergement
 #   SSH_PATH                                    dossier du site sur le serveur
 #   SSH_KEY                                     clé privée dédiée au déploiement
@@ -36,8 +37,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
 
       - name: Vérifier les secrets de déploiement
         id: check
@@ -46,10 +47,11 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PATH: ${{ secrets.SSH_PATH }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
-          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
         run: |
           missing=""
-          for name in SSH_HOST SSH_USER SSH_PATH SSH_KEY SUPABASE_URL; do
+          for name in SSH_HOST SSH_USER SSH_PATH SSH_KEY SUPABASE_URL SUPABASE_ANON_KEY; do
             if [ -z "${!name}" ]; then missing="$missing $name"; fi
           done
           if [ -n "$missing" ]; then
