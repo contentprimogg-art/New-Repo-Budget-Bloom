@@ -1,6 +1,10 @@
-import { Share, X } from 'lucide-react'
+import { Download, Share, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { isNative } from '../lib/push'
+
+// APK Android publié avec le site (npm run apk le copie dans public/).
+const APK_URL = '/budget-bloom.apk'
 
 type InstallChoice = { outcome: 'accepted' | 'dismissed'; platform: string }
 type InstallPromptEvent = Event & {
@@ -15,19 +19,23 @@ function isAppInstalled() {
   )
 }
 
+const isAndroid = () => /Android/i.test(navigator.userAgent)
+
 function isAppleMobile() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 }
 
 export default function InstallPrompt({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
-  const [installed, setInstalled] = useState(isAppInstalled)
+  // Dans l'APK, l'appli est déjà installée.
+  const [installed, setInstalled] = useState(() => isAppInstalled() || isNative())
   const [dismissed, setDismissed] = useState(false)
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null)
   const [showInstructions, setShowInstructions] = useState(false)
   const [isPrompting, setIsPrompting] = useState(false)
   const [promptError, setPromptError] = useState(false)
   const appleMobile = isAppleMobile()
+  const android = isAndroid()
   const visible = !installed && !dismissed
 
   useEffect(() => {
@@ -59,6 +67,17 @@ export default function InstallPrompt({ children }: { children: ReactNode }) {
   }, [showInstructions])
 
   async function install() {
+    // Android: on télécharge l'APK, puis on explique comment l'ouvrir.
+    if (android) {
+      const link = document.createElement('a')
+      link.href = APK_URL
+      link.download = 'budget-bloom.apk'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setShowInstructions(true)
+      return
+    }
     if (!installEvent) {
       setShowInstructions(true)
       return
@@ -123,14 +142,19 @@ export default function InstallPrompt({ children }: { children: ReactNode }) {
               <X size={20} />
             </button>
             <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-accent-soft text-accent-strong">
-              <Share size={23} />
+              {android ? <Download size={23} /> : <Share size={23} />}
             </div>
             <h2 id="install-dialog-title" className="mb-2 text-lg font-semibold">
               {t('installInstructionsTitle')}
             </h2>
             <p className="text-sm leading-relaxed text-muted">
-              {appleMobile ? t('installInstructionsIos') : t('installInstructionsOther')}
+              {android ? t('installInstructionsApk') : appleMobile ? t('installInstructionsIos') : t('installInstructionsOther')}
             </p>
+            {android && (
+              <a href={APK_URL} download="budget-bloom.apk" className="mt-4 inline-block text-sm font-medium text-accent-strong underline underline-offset-4">
+                {t('installApkAgain')}
+              </a>
+            )}
             {promptError && (
               <p role="alert" className="mt-3 text-sm text-over">
                 {t('installPromptError')}

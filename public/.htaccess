@@ -8,3 +8,12 @@
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 </IfModule>
+
+# APK Android: type reconnu par le téléphone, et toujours la dernière version (pas de cache).
+AddType application/vnd.android.package-archive .apk
+<IfModule mod_headers.c>
+  <FilesMatch "\.apk$">
+    Header set Cache-Control "no-cache"
+    Header set Content-Disposition "attachment; filename=budget-bloom.apk"
+  </FilesMatch>
+</IfModule>

@@ -125,6 +125,8 @@ const resources = {
       installInstructionsIos: "Touchez Partager dans le navigateur, puis « Sur l’écran d’accueil » pour ajouter Budget Bloom à votre iPhone ou iPad.",
       installInstructionsOther: "Ouvrez le menu de votre navigateur, puis choisissez « Installer l’application » ou « Ajouter à l’écran d’accueil ».",
       installPromptError: "L’installation n’a pas pu démarrer. Vous pouvez l’ajouter depuis le menu de votre navigateur.",
+      installInstructionsApk: "Le fichier budget-bloom.apk se télécharge. Ouvrez-le depuis la notification de téléchargement (ou l’appli Fichiers), puis touchez « Installer ». Si Android le demande, autorisez votre navigateur à installer des applications.",
+      installApkAgain: 'Relancer le téléchargement',
     },
   },
   en: {
@@ -249,6 +251,8 @@ const resources = {
       installInstructionsIos: 'Tap Share in your browser, then “Add to Home Screen” to add Budget Bloom to your iPhone or iPad.',
       installInstructionsOther: 'Open your browser menu, then choose “Install app” or “Add to Home Screen”.',
       installPromptError: 'Installation could not start. You can add the app from your browser menu.',
+      installInstructionsApk: 'The budget-bloom.apk file is downloading. Open it from the download notification (or the Files app), then tap “Install”. If Android asks, allow your browser to install apps.',
+      installApkAgain: 'Download again',
     },
   },
 }

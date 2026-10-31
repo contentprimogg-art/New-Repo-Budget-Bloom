@@ -27,5 +27,5 @@ dist-ssr
 .env.*
 !.env.example
 
-# APK construit localement
-budget-bloom.apk
+# APK construit localement (celui de public/ est publié avec le site)
+/budget-bloom.apk
