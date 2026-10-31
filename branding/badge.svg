@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Silhouette blanche de la fleur, pour la barre d'état Android (notifications). -->
+  <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+    <rect width="512" height="512" fill="#fff"/>
+    <circle cx="256" cy="256" r="36" fill="#000"/>
+  </mask>
+  <g fill="#fff" mask="url(#cut)">
+    <ellipse cx="256" cy="146" rx="56" ry="116"/>
+    <ellipse cx="256" cy="146" rx="56" ry="116" transform="rotate(60 256 256)"/>
+    <ellipse cx="256" cy="146" rx="56" ry="116" transform="rotate(120 256 256)"/>
+    <ellipse cx="256" cy="146" rx="56" ry="116" transform="rotate(180 256 256)"/>
+    <ellipse cx="256" cy="146" rx="56" ry="116" transform="rotate(240 256 256)"/>
+    <ellipse cx="256" cy="146" rx="56" ry="116" transform="rotate(300 256 256)"/>
+  </g>
+  <circle cx="256" cy="256" r="16" fill="#fff"/>
+</svg>

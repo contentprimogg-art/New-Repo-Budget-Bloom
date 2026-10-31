@@ -25,6 +25,7 @@ import Avatar from './Avatar'
 import ChangeEmailCard from './ChangeEmailCard'
 import ConfirmButton from './ConfirmButton'
 import CompanionCard from './CompanionCard'
+import NotificationsCard from './NotificationsCard'
 import HouseholdCard from './HouseholdCard'
 import HouseholdsCard from './HouseholdSwitch'
 import LanguageSwitch from './LanguageSwitch'
@@ -244,6 +245,8 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
       </Card>
 
       <Card title={t('language')} description={t('languageHint')} action={<LanguageSwitch full />} />
+
+      <NotificationsCard />
 
       <CompanionCard />
 

@@ -15,6 +15,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // La conversion HEIC (≈ 1,3 Mo) n'est téléchargée que si nécessaire, pas mise en cache d'office.
         globIgnores: ['**/heic2any-*.js'],
+        // Réception et affichage des notifications (public/push-sw.js).
+        importScripts: ['push-sw.js'],
         // Mode hors-ligne: lectures Supabase « réseau d'abord », dernière version connue sans réseau.
         // Ce cache est effacé à la déconnexion (lib/session.ts).
         runtimeCaching: [

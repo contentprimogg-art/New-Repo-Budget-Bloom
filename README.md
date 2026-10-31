@@ -28,6 +28,7 @@ Les migrations sont dans `supabase/migrations/`. À exécuter **dans l'ordre, un
 7. `0007_avatar_formats.sql`: photos de profil en GIF et jusqu’à 5 Mo
 8. `0008_household_incomes_recurring.sql`: devise du foyer, revenus, dépenses récurrentes, profils et photos visibles par le foyer
 9. `0009_currency_conversion.sql`: dépenses saisies dans une autre devise et conversion de tous les montants au changement de devise du foyer
+10. `0010_notifications.sql`: notifications (appareils abonnés, préférences, envoi à chaque dépense et toutes les heures via la fonction `notify`)
 
 ## Aperçu des composants (développement)
 

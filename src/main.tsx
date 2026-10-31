@@ -6,6 +6,7 @@ import './i18n'
 import './index.css'
 import App from './App.tsx'
 import { applyFavicon, storedFavicon } from './lib/favicon'
+import { listenNativePush } from './lib/push'
 import { applyPalette, applyThemeMode, storedPalette, storedThemeMode, syncThemeColor } from './lib/theme'
 
 // La palette choisie est appliquée avant le premier affichage (pas de flash de l'ancienne couleur).
@@ -29,6 +30,9 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
     if (document.visibilityState === 'visible') void navigator.serviceWorker.getRegistration().then((r) => r?.update())
   })
 }
+
+// APK: toucher une notification ouvre la bonne page.
+listenNativePush()
 
 // Aperçu des composants, uniquement en développement (captures d'écran de contrôle).
 const Preview = import.meta.env.DEV ? lazy(() => import('./dev/Preview')) : null

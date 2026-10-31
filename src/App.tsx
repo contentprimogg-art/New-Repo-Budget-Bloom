@@ -15,6 +15,7 @@ import { HouseholdProvider } from './lib/household'
 import { HouseholdsContext, loadHouseholds, storeActive, storedActive, type HouseholdRef } from './lib/households'
 import { DataProvider } from './lib/realtime'
 import { pageOf, useHash } from './lib/route'
+import { syncPush } from './lib/push'
 import { isConfigured, supabase } from './lib/supabase'
 
 function Pages({ householdId }: { householdId: string }) {
@@ -57,6 +58,11 @@ function AppContent() {
   }, [])
 
   const userId = session?.user.id
+
+  // Abonnement aux notifications de cet appareil: réenregistré à chaque ouverture (sans redemander la permission).
+  useEffect(() => {
+    if (userId) void syncPush().catch(() => {})
+  }, [userId])
 
   // Foyers dont on est membre; le foyer affiché est celui choisi sur cet appareil (sinon le premier).
   const refresh = useCallback(

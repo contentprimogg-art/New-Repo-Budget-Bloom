@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Budget Bloom</string>
+    <string name="title_activity_main">Budget Bloom</string>
+    <string name="package_name">fr.ciaoprimo.budgetbloom</string>
+    <string name="custom_url_scheme">fr.ciaoprimo.budgetbloom</string>
+</resources>

@@ -1,3 +1,4 @@
+import { disablePush } from './push'
 import { clearOutbox } from './expenses'
 import { supabase } from './supabase'
 
@@ -11,5 +12,7 @@ export async function signOut() {
   } catch {
     /* Cache Storage indisponible */
   }
+  // Cet appareil ne doit plus recevoir les notifications du compte.
+  await disablePush().catch(() => {})
   await supabase.auth.signOut()
 }
