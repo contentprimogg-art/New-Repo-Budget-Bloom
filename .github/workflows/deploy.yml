@@ -1,13 +1,15 @@
 name: Déploiement Infomaniak
 
-# Construit l'app et envoie le dossier dist/ sur l'hébergement Infomaniak par SSH (rsync).
-# Secrets GitHub nécessaires (Settings → Secrets and variables → Actions):
+# Construit l'app et envoie le dossier dist/ sur l'hébergement Infomaniak.
+# Secrets GitHub (Settings → Secrets and variables → Actions):
 #   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  clés publiques de Supabase, intégrées à la compilation
 #                                               (au choix: secrets OU variables GitHub, ce ne sont pas des secrets)
-#   SSH_HOST, SSH_USER                          connexion SSH de l'hébergement
-#   SSH_PATH                                    dossier du site sur le serveur
-#   SSH_KEY                                     clé privée dédiée au déploiement
-# Tant qu'un secret manque, l'étape de déploiement est ignorée (le build est quand même vérifié).
+# Envoi par FTP (recommandé: mêmes identifiants que l'envoi manuel):
+#   FTP_HOST, FTP_USER, FTP_PASSWORD            serveur et compte FTP (Manager Infomaniak → FTP / SSH)
+#   FTP_PATH                                    dossier du site, vu depuis ce compte FTP (ex. /sites/budgetbloom.ciaoprimo.fr/)
+# Ou envoi par SSH (si les secrets FTP sont absents):
+#   SSH_HOST, SSH_USER, SSH_PATH, SSH_KEY       connexion SSH et clé privée dédiée
+# Sans ces secrets, le déploiement est ignoré (le build est quand même vérifié).
 
 on:
   push:
@@ -43,6 +45,10 @@ jobs:
       - name: Vérifier les secrets de déploiement
         id: check
         env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PATH: ${{ secrets.FTP_PATH }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PATH: ${{ secrets.SSH_PATH }}
@@ -50,22 +56,49 @@ jobs:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
         run: |
-          missing=""
-          for name in SSH_HOST SSH_USER SSH_PATH SSH_KEY SUPABASE_URL SUPABASE_ANON_KEY; do
-            if [ -z "${!name}" ]; then missing="$missing $name"; fi
-          done
-          if [ -n "$missing" ]; then
-            echo "Secrets manquants:$missing -> déploiement ignoré."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          elif [ "${SSH_PATH}" = "/" ] || [ "${SSH_PATH}" = "~" ] || [ "${SSH_PATH}" = "." ]; then
-            echo "SSH_PATH ne doit pas être la racine ou le dossier personnel: choisissez le dossier du site."
-            exit 1
+          missing() { local m=""; for name in "$@"; do [ -z "${!name}" ] && m="$m $name"; done; echo "$m"; }
+          if [ -n "$(missing SUPABASE_URL SUPABASE_ANON_KEY)" ]; then
+            echo "Secrets manquants:$(missing SUPABASE_URL SUPABASE_ANON_KEY) -> déploiement ignoré."
+            echo "mode=none" >> "$GITHUB_OUTPUT"
+          elif [ -n "$FTP_HOST$FTP_USER$FTP_PASSWORD$FTP_PATH" ]; then
+            if [ -n "$(missing FTP_HOST FTP_USER FTP_PASSWORD FTP_PATH)" ]; then
+              echo "::error::Secrets FTP incomplets:$(missing FTP_HOST FTP_USER FTP_PASSWORD FTP_PATH)"
+              exit 1
+            fi
+            if [ "${FTP_PATH}" = "/" ] || [ "${FTP_PATH}" = "." ] || [ "${FTP_PATH}" = "./" ]; then
+              echo "::error::FTP_PATH ne doit pas être la racine: indiquez le dossier du site."
+              exit 1
+            fi
+            echo "Envoi par FTP vers ${FTP_HOST}."
+            echo "mode=ftp" >> "$GITHUB_OUTPUT"
+          elif [ -z "$(missing SSH_HOST SSH_USER SSH_PATH SSH_KEY)" ]; then
+            if [ "${SSH_PATH}" = "/" ] || [ "${SSH_PATH}" = "~" ] || [ "${SSH_PATH}" = "." ]; then
+              echo "::error::SSH_PATH ne doit pas être la racine ou le dossier personnel: choisissez le dossier du site."
+              exit 1
+            fi
+            echo "Envoi par SSH vers ${SSH_HOST}."
+            echo "mode=ssh" >> "$GITHUB_OUTPUT"
           else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Ni secrets FTP ni secrets SSH complets -> déploiement ignoré."
+            echo "mode=none" >> "$GITHUB_OUTPUT"
           fi
 
+      # FTP chiffré (FTPS). Le dossier distant se termine par « / ». L'action garde un petit fichier
+      # d'état sur le serveur pour n'envoyer ensuite que les fichiers modifiés; elle n'efface que
+      # des fichiers qu'elle a elle-même envoyés.
+      - name: Envoyer le site (FTP)
+        if: steps.check.outputs.mode == 'ftp'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./dist/
+          server-dir: ${{ endsWith(secrets.FTP_PATH, '/') && secrets.FTP_PATH || format('{0}/', secrets.FTP_PATH) }}
+
       - name: Configurer SSH
-        if: steps.check.outputs.ready == 'true'
+        if: steps.check.outputs.mode == 'ssh'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -86,8 +119,8 @@ jobs:
           fi
 
       # Pas de --delete: on n'efface jamais rien sur le serveur (une erreur de chemin ne peut pas vider un dossier).
-      - name: Envoyer le site
-        if: steps.check.outputs.ready == 'true'
+      - name: Envoyer le site (SSH)
+        if: steps.check.outputs.mode == 'ssh'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
