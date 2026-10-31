@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "646379560047",
+    "project_id": "budget-bloom-3a50b",
+    "storage_bucket": "budget-bloom-3a50b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:646379560047:android:56c2c6b428728d8ae0819a",
+        "android_client_info": {
+          "package_name": "fr.ciaoprimo.budgetbloom"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3pwC5Lzlvq1lo4G7KIQygk6BDmDQc4KI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
