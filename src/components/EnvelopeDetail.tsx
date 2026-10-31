@@ -1,9 +1,12 @@
-import { ChevronLeft, Pencil, Repeat } from 'lucide-react'
+import { ChevronLeft, CloudOff, Pencil, Repeat, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { mergePending, mutate } from '../lib/expenses'
 import { fmtDate, fmtMoney, fmtMonth, parseAmount } from '../lib/format'
-import { IconBadge, badgeColor, colorForIndex, isEmoji } from '../lib/icons'
+import { useOptionalHousehold } from '../lib/household'
+import { IconBadge, colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
+import { FREQUENCIES, lineageOf, makeRecurring, type Frequency } from '../lib/recurring'
 import { settleExpense, syncLinkedAmount } from '../lib/savings'
 import { supabase } from '../lib/supabase'
 import { envelopeTips, type Sibling } from '../lib/tips'
@@ -15,6 +18,7 @@ import {
   type EnvelopeGroup,
   type Expense,
   type ExpenseStatus,
+  type RecurringExpense,
 } from '../lib/types'
 import EnvelopeSheet from './budget/EnvelopeSheet'
 import QuickAddSheet from './budget/QuickAddSheet'
@@ -22,8 +26,9 @@ import EnvelopeTable from './EnvelopeTable'
 import KeepDialog from './KeepDialog'
 import ScriptTitle from './ScriptTitle'
 import Tips from './Tips'
+import { MemberAvatar } from './ui/AvatarStack'
 import Fab from './ui/Fab'
-import HatchedDonut from './ui/HatchedDonut'
+import Donut from './ui/Donut'
 import Card from './ui/Card'
 import { IconButton } from './ui/PageHeader'
 import PageShell from './ui/PageShell'
@@ -86,6 +91,9 @@ export default function EnvelopeDetail({
   const version = useDataVersion()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [recurring, setRecurring] = useState<RecurringExpense[]>([])
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'counted' | 'settled'>('all')
   const [view, setView] = useState<DetailView>(readView)
   const [sheet, setSheet] = useState<'quick' | 'edit' | null>(null)
   const changeView = (v: DetailView) => {
@@ -97,16 +105,23 @@ export default function EnvelopeDetail({
     }
   }
 
+  const lineage = lineageOf(envelope)
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('expenses')
-      .select('id, envelope_id, amount, note, spent_on, status, settled_on')
-      .eq('envelope_id', envelope.id)
-      .order('spent_on', { ascending: false })
-      .order('created_at', { ascending: false })
-    setExpenses(((data ?? []) as Expense[]).map((e) => ({ ...e, amount: Number(e.amount) })))
+    const [exp, rec] = await Promise.all([
+      supabase
+        .from('expenses')
+        .select('*')
+        .eq('envelope_id', envelope.id)
+        .order('spent_on', { ascending: false })
+        .order('created_at', { ascending: false }),
+      supabase.from('recurring_expenses').select('*').eq('lineage_id', lineage).order('created_at'),
+    ])
+    const rows = ((exp.data ?? []) as Expense[]).map((e) => ({ ...e, amount: Number(e.amount) }))
+    // Les opérations hors-ligne en attente apparaissent tout de suite.
+    setExpenses(mergePending('expenses', rows, (e) => e.envelope_id === envelope.id).sort((a, b) => b.spent_on.localeCompare(a.spent_on)))
+    setRecurring(((rec.data ?? []) as RecurringExpense[]).map((r) => ({ ...r, amount: Number(r.amount) })))
     setLoaded(true)
-  }, [envelope.id])
+  }, [envelope.id, lineage])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -122,6 +137,13 @@ export default function EnvelopeDetail({
   const stats = envelopeStats(envelope.budget, spent)
   const over = stats.overBy > 0
   const group = groups.find((g) => g.id === envelope.group_id)
+  // Filtre local: libellé ou montant, et statut (comptées / remboursées).
+  const needle = query.trim().toLowerCase()
+  const visible = expenses.filter(
+    (e) =>
+      (statusFilter === 'all' || (statusFilter === 'counted' ? e.status !== 'refunded' : e.status !== 'active')) &&
+      (!needle || (e.note ?? '').toLowerCase().includes(needle) || String(e.amount).replace('.', ',').includes(needle.replace('.', ','))),
+  )
 
   return (
     <PageShell
@@ -155,7 +177,7 @@ export default function EnvelopeDetail({
           <Card>
             <div className="flex flex-col items-center gap-4">
               <IconBadge icon={envelope.icon} color={envelope.color} size="lg" />
-              <HatchedDonut
+              <Donut
                 size={230}
                 labels={false}
                 ariaLabel={`${envelope.name}: ${money(stats.spent)} / ${money(envelope.budget)}`}
@@ -164,8 +186,8 @@ export default function EnvelopeDetail({
                   over
                     ? [{ key: 'over', label: t('overLabel'), value: stats.spent, color: 'var(--over)' }]
                     : [
-                        { key: 'spent', label: t('spent'), value: stats.spent, color: isEmoji(envelope.icon) ? 'var(--accent-strong)' : badgeColor(envelope.color) },
-                        { key: 'left', label: t('remaining'), value: Math.max(stats.remaining, 0), color: 'var(--ok)' },
+                        { key: 'spent', label: t('spent'), value: stats.spent, color: 'var(--accent-strong)' },
+                        { key: 'left', label: t('remaining'), value: Math.max(stats.remaining, 0), color: 'var(--track)' },
                       ]
                 }
                 center={
@@ -200,6 +222,36 @@ export default function EnvelopeDetail({
               money,
             })}
           />
+          {recurring.length > 0 && (
+            <Card title={t('recurringExpenses')} description={t('recurringExpensesHint')}>
+              <ul className="-my-2 divide-y divide-dashed divide-muted/30">
+                {recurring.map((r) => (
+                  <li key={r.id} className="flex items-center gap-3 py-3">
+                    <Repeat size={16} className="shrink-0 text-accent-strong" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px]">{r.note || t('unnamed')}</span>
+                      <span className="text-xs text-muted">
+                        {t(`repeat_${r.every_months}`)} · {t('nextOccurrence', { month: fmtMonth(r.next_month, lng) })}
+                      </span>
+                    </span>
+                    <span className="text-[15px] font-medium tabular-nums">{money(r.amount)}</span>
+                    <button
+                      type="button"
+                      aria-label={t('stopRecurring')}
+                      title={t('stopRecurring')}
+                      onClick={async () => {
+                        await supabase.from('recurring_expenses').delete().eq('id', r.id)
+                        void load()
+                      }}
+                      className="no-print rounded-full p-1 text-muted hover:text-over"
+                    >
+                      <X size={16} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </div>
 
         <section className="flex flex-col gap-3">
@@ -209,24 +261,52 @@ export default function EnvelopeDetail({
               <ViewSwitch view={view} onChange={changeView} />
             </div>
           </div>
+          {view !== 'table' && expenses.length > 0 && (
+            <div className="no-print flex flex-wrap items-center gap-2">
+              <label className="flex min-w-[10rem] flex-1 items-center gap-2 rounded-2xl border border-border bg-surface px-3 py-2 focus-within:border-accent-strong">
+                <Search size={15} className="text-muted" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t('filterPlaceholder')}
+                  aria-label={t('filterPlaceholder')}
+                  className="w-full border-0 bg-transparent text-sm outline-none focus:shadow-none"
+                />
+              </label>
+              {(['all', 'counted', 'settled'] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  aria-pressed={statusFilter === f}
+                  onClick={() => setStatusFilter(f)}
+                  className={`rounded-2xl border px-3 py-2 text-xs ${statusFilter === f ? 'border-accent bg-accent-soft font-medium text-accent-strong' : 'border-border bg-surface text-muted'}`}
+                >
+                  {f === 'all' ? t('allStatuses') : f === 'counted' ? t('statusActive') : t('refund')}
+                </button>
+              ))}
+            </div>
+          )}
           {loaded && expenses.length === 0 && view !== 'table' && <Card description={t('noTransactions')} />}
+          {view !== 'table' && expenses.length > 0 && visible.length === 0 && <Card description={t('noResults')} />}
           {(view === 'table' || expenses.length > 0) &&
             (view === 'table' ? (
               <EnvelopeTable envelope={envelope} expenses={expenses} onChanged={refresh} />
             ) : view === 'grid' ? (
               <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                {expenses.map((e) => (
-                  <TransactionRow key={e.id} householdId={envelope.household_id} expense={e} view="grid" onChanged={refresh} />
+                {visible.map((e) => (
+                  <TransactionRow key={e.id} householdId={envelope.household_id} envelope={envelope} expense={e} view="grid" onChanged={refresh} />
                 ))}
               </ul>
             ) : (
+              visible.length > 0 && (
               <Card>
                 <ul className="-my-2 divide-y divide-dashed divide-muted/30">
-                  {expenses.map((e) => (
-                    <TransactionRow key={e.id} householdId={envelope.household_id} expense={e} view="list" onChanged={refresh} />
+                  {visible.map((e) => (
+                    <TransactionRow key={e.id} householdId={envelope.household_id} envelope={envelope} expense={e} view="list" onChanged={refresh} />
                   ))}
                 </ul>
               </Card>
+              )
             ))}
         </section>
       </div>
@@ -257,11 +337,13 @@ export default function EnvelopeDetail({
 // Une transaction: un appui affiche les actions (rembourser, modifier, supprimer).
 export function TransactionRow({
   householdId,
+  envelope,
   expense,
   view,
   onChanged,
 }: {
   householdId: string
+  envelope?: Envelope
   expense: Expense
   view: Exclude<DetailView, 'table'>
   onChanged: () => void
@@ -277,16 +359,30 @@ export function TransactionRow({
   const [settling, setSettling] = useState(false)
   const [picking, setPicking] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  const [repeating, setRepeating] = useState(false)
+  const household = useOptionalHousehold()
+  const author = expense.created_by ? household?.memberById[expense.created_by] : undefined
 
   const fail = (message: string) => setFailure(`${t('errSave')} (${message})`)
+
+  async function repeat(every: Frequency) {
+    if (!envelope) return
+    if (!navigator.onLine) return setFailure(t('repeatNeedsNetwork'))
+    const r = await makeRecurring({ envelope, expense, every })
+    if (r.error) return setFailure(/recurring_expenses/.test(r.error) ? t('errMigration0008') : `${t('errSave')} (${r.error})`)
+    setRepeating(false)
+    setFailure(null)
+    onChanged()
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
     const value = parseAmount(amount)
     if (!(value > 0)) return setInvalid(true)
-    const { error } = await supabase.from('expenses').update({ note: note.trim() || null, amount: value }).eq('id', expense.id)
-    if (error) return fail(error.message)
-    await syncLinkedAmount(expense.id, value)
+    // Modification possible hors-ligne (mise en attente puis envoyée au retour du réseau).
+    const { error, queued } = await mutate({ kind: 'update', table: 'expenses', id: expense.id, values: { note: note.trim() || null, amount: value } })
+    if (error) return fail(error)
+    if (!queued) await syncLinkedAmount(expense.id, value)
     setEditing(false)
     setInvalid(false)
     setFailure(null)
@@ -294,12 +390,14 @@ export function TransactionRow({
   }
 
   async function remove() {
-    const { error } = await supabase.from('expenses').delete().eq('id', expense.id)
-    if (error) return fail(error.message)
+    const { error } = await mutate({ kind: 'delete', table: 'expenses', id: expense.id })
+    if (error) return fail(error)
     onChanged()
   }
 
   async function setStatus(status: ExpenseStatus, savingsId?: string | null) {
+    // Le remboursement touche aussi l'épargne: il demande le réseau.
+    if (!navigator.onLine) return setFailure(t('needsNetwork'))
     const error = await settleExpense({ householdId, expense, status, savingsId, fallbackNote: t('refundedKeptNote') })
     if (error) return fail(error)
     setSettling(false)
@@ -354,6 +452,11 @@ export function TransactionRow({
           <button onClick={() => setEditing(true)} className={pill}>
             {t('edit')}
           </button>
+          {envelope && !expense.recurring_id && !expense.pending && (
+            <button onClick={() => setRepeating(!repeating)} aria-expanded={repeating} className={pill}>
+              {t('repeatAction')}
+            </button>
+          )}
           {confirming ? (
             <button onClick={() => void remove()} onBlur={() => setConfirming(false)} autoFocus className="rounded-full bg-over/10 px-3 py-1 font-semibold text-over">
               {t('confirmDelete')}
@@ -363,6 +466,16 @@ export function TransactionRow({
               {t('delete')}
             </button>
           )}
+        </div>
+      )}
+      {repeating && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-muted">{t('repeat')}:</span>
+          {FREQUENCIES.map((f) => (
+            <button key={f} onClick={() => void repeat(f)} className="rounded-full bg-accent-soft px-3 py-1 text-accent-strong">
+              {t(`repeat_${f}`)}
+            </button>
+          ))}
         </div>
       )}
       {failure && <p className="text-over">{failure}</p>}
@@ -403,9 +516,14 @@ export function TransactionRow({
           </span>
         </span>
         <span className="min-w-0 flex-1">
-          <span className={`block truncate text-[15px] ${struck} ${expense.note ? '' : 'text-muted'}`}>{expense.note || t('unnamed')}</span>
+          <span className={`flex items-center gap-1.5 truncate text-[15px] ${struck} ${expense.note ? '' : 'text-muted'}`}>
+            <span className="truncate">{expense.note || t('unnamed')}</span>
+            {expense.recurring_id && <Repeat aria-label={t('recurringExpense')} size={12} className="shrink-0 text-muted" />}
+            {expense.pending && <CloudOff aria-label={t('pendingOne')} size={12} className="shrink-0 text-muted" />}
+          </span>
           {status}
         </span>
+        {household?.shared && author && <MemberAvatar member={author} size={20} />}
         <span className={`shrink-0 text-[15px] font-medium tabular-nums ${struck}`}>{money}</span>
       </button>
       {open && details}

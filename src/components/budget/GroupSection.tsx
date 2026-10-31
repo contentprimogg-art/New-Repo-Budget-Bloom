@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtMoney } from '../../lib/format'
 import type { Envelope } from '../../lib/types'
-import StripeBar from '../ui/StripeBar'
+import ProgressBar from '../ui/ProgressBar'
 import EnvelopeRow from './EnvelopeRow'
 
 const KEY = 'bloomCollapsedGroups'
@@ -23,6 +23,7 @@ export default function GroupSection({
   title,
   envelopes,
   spentBy,
+  contributors = {},
   onOpen,
   onRename,
   onDelete,
@@ -31,6 +32,7 @@ export default function GroupSection({
   title: string
   envelopes: Envelope[]
   spentBy: Record<string, number>
+  contributors?: Record<string, string[]>
   onOpen: (envelopeId: string) => void
   onRename?: () => void
   onDelete?: () => void
@@ -97,12 +99,12 @@ export default function GroupSection({
         </span>
       </div>
       <div className="mt-2 pl-6">
-        <StripeBar size="sm" spent={spent} budget={budget} label={`${title}: ${money(spent)} / ${money(budget)}`} />
+        <ProgressBar size="sm" spent={spent} budget={budget} label={`${title}: ${money(spent)} / ${money(budget)}`} />
       </div>
       {!collapsed && (
         <ul className="fade-up divide-y divide-dashed divide-muted/30">
           {envelopes.map((e) => (
-            <EnvelopeRow key={e.id} envelope={e} spent={spentBy[e.id] ?? 0} onOpen={() => onOpen(e.id)} />
+            <EnvelopeRow key={e.id} envelope={e} spent={spentBy[e.id] ?? 0} contributors={contributors[e.id]} onOpen={() => onOpen(e.id)} />
           ))}
         </ul>
       )}

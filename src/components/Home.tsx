@@ -1,26 +1,31 @@
-import { ChevronLeft, ChevronRight, CloudOff, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CloudOff, Plus, Search, Settings } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useOutboxCount } from '../lib/expenses'
+import { mergePending, useOutboxCount } from '../lib/expenses'
 import { fmtMoney, fmtMonth } from '../lib/format'
 import { colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
 import { useHash } from '../lib/route'
 import { supabase } from '../lib/supabase'
 import { reallocTips } from '../lib/tips'
-import { countsAsSpent, currentMonth, shiftMonth, type Envelope, type EnvelopeGroup } from '../lib/types'
+import { countsAsSpent, currentMonth, shiftMonth, type Envelope, type EnvelopeGroup, type Income } from '../lib/types'
 import EnvelopeSheet from './budget/EnvelopeSheet'
 import GroupSection from './budget/GroupSection'
 import GroupSheet from './budget/GroupSheet'
+import IncomeList from './budget/IncomeList'
+import IncomeSheet from './budget/IncomeSheet'
 import QuickAddSheet from './budget/QuickAddSheet'
+import SearchSheet from './budget/SearchSheet'
 import EnvelopeRow from './budget/EnvelopeRow'
 import EnvelopeDetail from './EnvelopeDetail'
 import MonthSummary from './MonthSummary'
 import ScriptTitle from './ScriptTitle'
 import Tips from './Tips'
+import BloomButton from './ui/BloomButton'
 import Fab from './ui/Fab'
 import { PRIMARY } from './ui/Field'
 import Card from './ui/Card'
+import { IconButton } from './ui/PageHeader'
 import PageShell from './ui/PageShell'
 import Sheet from './ui/Sheet'
 
@@ -32,12 +37,17 @@ type SheetState =
   | { kind: 'envelope'; envelope?: Envelope; groupId?: string | null }
   | { kind: 'group'; group?: EnvelopeGroup }
   | { kind: 'deleteGroup'; group: EnvelopeGroup }
+  | { kind: 'income'; income?: Income }
+  | { kind: 'search' }
   | null
 
 // Navigation par hash: le bouton « retour » du téléphone ferme le détail.
-function useSelectedId() {
+// « #/envelope/<id>@<mois> » ouvre une enveloppe d'un autre mois (depuis la recherche).
+function useSelected() {
   const hash = useHash()
-  return hash.startsWith(PREFIX) ? hash.slice(PREFIX.length) : null
+  if (!hash.startsWith(PREFIX)) return { id: null, month: null }
+  const [id, month] = hash.slice(PREFIX.length).split('@')
+  return { id, month: month ?? null }
 }
 
 export default function Home({ householdId }: { householdId: string }) {
@@ -50,11 +60,13 @@ export default function Home({ householdId }: { householdId: string }) {
   const [month, setMonth] = useState(nowMonth)
   const [firstMonth, setFirstMonth] = useState<string | null>(null)
   const [rolled, setRolled] = useState(0)
-  const selectedId = useSelectedId()
+  const { id: selectedId, month: selectedMonth } = useSelected()
   const [envelopes, setEnvelopes] = useState<Envelope[]>([])
   const [groups, setGroups] = useState<EnvelopeGroup[]>([])
   const [groupsMissing, setGroupsMissing] = useState(false)
   const [spentBy, setSpentBy] = useState<Record<string, number>>({})
+  const [contributors, setContributors] = useState<Record<string, string[]>>({})
+  const [incomes, setIncomes] = useState<Income[]>([])
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [sheet, setSheet] = useState<SheetState>(null)
@@ -71,10 +83,11 @@ export default function Home({ householdId }: { householdId: string }) {
       if (error) console.warn('rollover_month:', error.message)
       else if (typeof data === 'number' && data > 0) setRolled(data)
     }
-    const [first, env, grp] = await Promise.all([
+    const [first, env, grp, inc] = await Promise.all([
       supabase.from('envelopes').select('month').eq('household_id', householdId).order('month').limit(1).maybeSingle(),
       supabase.from('envelopes').select('*').eq('household_id', householdId).eq('month', month).order('sort').order('created_at'),
       supabase.from('envelope_groups').select('*').eq('household_id', householdId).order('sort').order('created_at'),
+      supabase.from('incomes').select('*').eq('household_id', householdId).eq('month', month).order('received_on'),
     ])
     if (first.data) setFirstMonth(first.data.month)
     if (env.error) {
@@ -86,25 +99,38 @@ export default function Home({ householdId }: { householdId: string }) {
     setGroupsMissing(!!grp.error)
     const list = (env.data ?? []).map((e) => ({ ...e, budget: Number(e.budget) })) as Envelope[]
     const sums: Record<string, number> = {}
+    const authors: Record<string, Set<string>> = {}
     if (list.length) {
+      const ids = new Set(list.map((e) => e.id))
       const exp = await supabase
         .from('expenses')
-        .select('envelope_id, amount, status')
-        .in('envelope_id', list.map((e) => e.id))
+        .select('id, envelope_id, amount, status, created_by')
+        .in('envelope_id', [...ids])
       if (exp.error) {
         setLoadError(exp.error.message)
         setLoaded(true)
         return
       }
-      for (const e of exp.data ?? []) {
+      // Les dépenses saisies hors-ligne (pas encore envoyées) comptent déjà.
+      const rows = mergePending('expenses', (exp.data ?? []) as { id: string; envelope_id: string; amount: number; status: 'active' | 'refunded' | 'kept'; created_by: string | null }[], (r) => ids.has(r.envelope_id))
+      for (const e of rows) {
         if (countsAsSpent(e.status)) sums[e.envelope_id] = (sums[e.envelope_id] ?? 0) + Number(e.amount)
+        if (e.created_by) (authors[e.envelope_id] ??= new Set()).add(e.created_by)
       }
     }
+    // Revenus: facultatifs tant que la migration 0008 n'est pas passée.
+    const incomeRows = mergePending(
+      'incomes',
+      ((inc.data ?? []) as Income[]).map((i) => ({ ...i, amount: Number(i.amount) })),
+      (i) => i.month === month,
+    ).sort((a, b) => a.received_on.localeCompare(b.received_on))
     if (id !== requestId.current) return // une requête plus récente (autre mois) a pris le relais
     setLoadError(null)
     setEnvelopes(list)
     setGroups((grp.data ?? []) as EnvelopeGroup[])
     setSpentBy(sums)
+    setContributors(Object.fromEntries(Object.entries(authors).map(([k, v]) => [k, [...v]])))
+    setIncomes(incomeRows)
     setLoaded(true)
   }, [householdId, month, nowMonth])
 
@@ -112,6 +138,13 @@ export default function Home({ householdId }: { householdId: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
   }, [load, version])
+
+  // Ouverture d'une enveloppe d'un autre mois (lien depuis la recherche): on se place sur ce mois.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (selectedMonth && selectedMonth !== month) setMonth(selectedMonth)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth])
 
   const onAdded = (queued: boolean) => {
     setNotice(queued ? t('savedOffline') : null)
@@ -136,9 +169,10 @@ export default function Home({ householdId }: { householdId: string }) {
     )
   }
 
-  const open = (envelopeId: string) => {
-    window.location.hash = `${PREFIX}${envelopeId}`
+  const open = (envelopeId: string, m?: string) => {
+    window.location.hash = m && m !== month ? `${PREFIX}${envelopeId}@${m}` : `${PREFIX}${envelopeId}`
   }
+  const totalIncome = incomes.reduce((s, i) => s + i.amount, 0)
   const totalBudget = envelopes.reduce((s, e) => s + e.budget, 0)
   const totalSpent = envelopes.reduce((s, e) => s + (spentBy[e.id] ?? 0), 0)
   const overList = envelopes.filter((e) => (spentBy[e.id] ?? 0) > e.budget)
@@ -149,6 +183,16 @@ export default function Home({ householdId }: { householdId: string }) {
     <PageShell
       wide
       title={t('tabBudget')}
+      action={
+        <span className="flex items-center">
+          <IconButton label={t('search')} onClick={() => setSheet({ kind: 'search' })}>
+            <Search size={21} />
+          </IconButton>
+          <IconButton label={t('settings')} href="#/profile">
+            <Settings size={21} />
+          </IconButton>
+        </span>
+      }
       fab={envelopes.length > 0 ? <Fab label={t('newExpense')} onClick={() => setSheet({ kind: 'quick' })} /> : undefined}
       subtitle={
         <div className="mt-2 inline-flex items-center rounded-full border border-border bg-surface py-0.5 text-[11.5px] font-semibold uppercase tracking-[0.2em] text-text">
@@ -211,6 +255,7 @@ export default function Home({ householdId }: { householdId: string }) {
                 month={month}
                 totalBudget={totalBudget}
                 totalSpent={totalSpent}
+                totalIncome={totalIncome}
                 totalOver={overList.reduce((s, e) => s + (spentBy[e.id] ?? 0) - e.budget, 0)}
                 overCount={overList.length}
               />
@@ -224,6 +269,17 @@ export default function Home({ householdId }: { householdId: string }) {
                 money,
               )}
             />
+          )}
+          {loaded && !loadError && (
+            <>
+              <div className="flex items-end justify-between gap-3">
+                <ScriptTitle>{t('incomes')}</ScriptTitle>
+                <button onClick={() => setSheet({ kind: 'income' })} className="no-print mb-2 flex items-center gap-1 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:border-accent">
+                  <Plus size={14} /> {t('newIncomeShort')}
+                </button>
+              </div>
+              <IncomeList incomes={incomes} onEdit={(income) => setSheet({ kind: 'income', income })} />
+            </>
           )}
         </div>
 
@@ -253,6 +309,7 @@ export default function Home({ householdId }: { householdId: string }) {
                     title={g.name}
                     envelopes={list}
                     spentBy={spentBy}
+                    contributors={contributors}
                     onOpen={open}
                     onRename={() => setSheet({ kind: 'group', group: g })}
                     onDelete={() => setSheet({ kind: 'deleteGroup', group: g })}
@@ -264,23 +321,18 @@ export default function Home({ householdId }: { householdId: string }) {
           {ungrouped.length > 0 && (
             <Card>
               {groups.length > 0 ? (
-                <GroupSection id={UNGROUPED} title={t('noGroup')} envelopes={ungrouped} spentBy={spentBy} onOpen={open} />
+                <GroupSection id={UNGROUPED} title={t('noGroup')} envelopes={ungrouped} spentBy={spentBy} contributors={contributors} onOpen={open} />
               ) : (
                 <ul className="-my-2 divide-y divide-dashed divide-muted/30">
                   {ungrouped.map((e) => (
-                    <EnvelopeRow key={e.id} envelope={e} spent={spentBy[e.id] ?? 0} onOpen={() => open(e.id)} />
+                    <EnvelopeRow key={e.id} envelope={e} spent={spentBy[e.id] ?? 0} contributors={contributors[e.id]} onOpen={() => open(e.id)} />
                   ))}
                 </ul>
               )}
             </Card>
           )}
 
-          <button
-            onClick={() => setSheet({ kind: 'envelope' })}
-            className="no-print flex items-center justify-center gap-2 rounded-3xl border border-dashed border-accent py-4 text-sm font-medium text-accent-strong hover:bg-accent-soft/50"
-          >
-            <Plus size={16} /> {t('newEnvelope')}
-          </button>
+          <BloomButton label={t('newEnvelope')} onClick={() => setSheet({ kind: 'envelope' })} />
         </div>
       </div>
 
@@ -296,6 +348,28 @@ export default function Home({ householdId }: { householdId: string }) {
           sort={envelopes.length}
           onClose={() => setSheet(null)}
           onSaved={load}
+        />
+      )}
+      {sheet?.kind === 'income' && (
+        <IncomeSheet
+          householdId={householdId}
+          month={month}
+          income={sheet.income}
+          onClose={() => setSheet(null)}
+          onSaved={(queued) => {
+            setNotice(queued ? t('savedOffline') : null)
+            void load()
+          }}
+        />
+      )}
+      {sheet?.kind === 'search' && (
+        <SearchSheet
+          householdId={householdId}
+          onClose={() => setSheet(null)}
+          onOpen={(envelopeId, m) => {
+            setSheet(null)
+            open(envelopeId, m)
+          }}
         />
       )}
       {sheet?.kind === 'group' && (

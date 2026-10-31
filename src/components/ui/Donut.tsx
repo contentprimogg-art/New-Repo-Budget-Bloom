@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { ICONS } from '../../lib/icons'
 
 export interface DonutSlice {
@@ -26,10 +26,9 @@ function arc(c: number, R: number, r: number, a0: number, a1: number): string {
   return `M${x0} ${y0}A${R} ${R} 0 ${large} 1 ${x1} ${y1}L${x2} ${y2}A${r} ${r} 0 ${large} 0 ${x3} ${y3}Z`
 }
 
-// Anneau hachuré façon moodboard: chaque part est remplie de fines rayures de sa couleur
-// (angles alternés 45°/135°: la texture distingue aussi les parts sans la couleur),
-// séparées par un liseré de la couleur du fond. Bulle d'icône et pourcentage à l'extérieur.
-export default function HatchedDonut({
+// Anneau en aplats: chaque part de sa couleur, séparée des autres par un liseré de la couleur du fond.
+// Bulle d'icône et pourcentage à l'extérieur des parts assez grandes; détail au survol ou à l'appui.
+export default function Donut({
   slices,
   size = 260,
   labels = true,
@@ -46,14 +45,13 @@ export default function HatchedDonut({
   format: (n: number) => string
   gapColor?: string
 }) {
-  const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const [active, setActive] = useState<number | null>(null)
   const parts = slices.filter((s) => s.value > 0)
   const total = parts.reduce((sum, s) => sum + s.value, 0)
   const pad = labels ? 46 : 3
   const c = size / 2
   const R = c - pad
-  const r = R * 0.56
+  const r = R * 0.62
   const innerInset = `${((pad + R - r) / size) * 100}%`
 
   let angle = -Math.PI / 2
@@ -69,31 +67,15 @@ export default function HatchedDonut({
   return (
     <figure className="relative mx-auto aspect-square w-full" style={{ maxWidth: size }}>
       <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label={ariaLabel} className="block size-full overflow-visible">
-        <defs>
-          {parts.map((s, i) => (
-            <pattern
-              key={s.key}
-              id={`${uid}-${i}`}
-              width="6"
-              height="6"
-              patternUnits="userSpaceOnUse"
-              patternTransform={`rotate(${i % 2 ? -45 : 45})`}
-            >
-              <rect width="6" height="6" style={{ fill: s.color, fillOpacity: 0.1 }} />
-              <rect width="2.2" height="6" style={{ fill: s.color }} />
-            </pattern>
-          ))}
-        </defs>
         {total === 0 ? (
-          <circle cx={c} cy={c} r={(R + r) / 2} fill="none" style={{ stroke: 'var(--border)' }} strokeWidth={R - r} strokeDasharray="3 5" />
+          <circle cx={c} cy={c} r={(R + r) / 2} fill="none" style={{ stroke: 'var(--track)' }} strokeWidth={R - r} />
         ) : (
           parts.map((s, i) => (
             <path
               key={s.key}
               d={arc(c, R, r, geometry[i].a0, geometry[i].a1)}
-              fill={`url(#${uid}-${i})`}
-              style={{ stroke: gapColor }}
-              strokeWidth={2}
+              style={{ fill: s.color, stroke: gapColor }}
+              strokeWidth={parts.length > 1 ? 2.5 : 0}
               strokeLinejoin="round"
               opacity={active === null || active === i ? 1 : 0.35}
               tabIndex={0}
@@ -132,10 +114,7 @@ export default function HatchedDonut({
             )
           })}
       </svg>
-      <div
-        className="pointer-events-none absolute flex flex-col items-center justify-center text-center"
-        style={{ inset: innerInset }}
-      >
+      <div className="pointer-events-none absolute flex flex-col items-center justify-center text-center" style={{ inset: innerInset }}>
         {focused ? (
           <>
             <span className="max-w-full truncate text-xs text-muted">{focused.label}</span>

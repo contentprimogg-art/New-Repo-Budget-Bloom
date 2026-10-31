@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { addExpense } from '../../lib/expenses'
-import { defaultDateFor, parseAmount } from '../../lib/format'
+import { mutate } from '../../lib/expenses'
+import { currencySymbol, defaultDateFor, parseAmount } from '../../lib/format'
 import { IconGlyph } from '../../lib/icons'
+import { FREQUENCIES, makeRecurring, type Frequency } from '../../lib/recurring'
 import type { Envelope } from '../../lib/types'
+import { uuid } from '../../lib/uuid'
+import Select from '../Select'
 import Field, { PRIMARY } from '../ui/Field'
 import Sheet from '../ui/Sheet'
 
@@ -20,12 +23,13 @@ export default function QuickAddSheet({
   onClose: () => void
   onAdded: (queued: boolean) => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [envelopeId, setEnvelopeId] = useState(defaultEnvelopeId ?? envelopes[0]?.id ?? '')
   const envelope = envelopes.find((e) => e.id === envelopeId)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [date, setDate] = useState(envelope ? defaultDateFor(envelope.month) : '')
+  const [repeat, setRepeat] = useState<'none' | `${Frequency}`>('none')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -34,14 +38,25 @@ export default function QuickAddSheet({
     if (busy || !envelope) return
     const value = Math.round(parseAmount(amount) * 100) / 100
     if (!(value > 0)) return setError(t('errAmount'))
-    setBusy(true)
-    const result = await addExpense({
+    const row = {
+      id: uuid(),
       household_id: envelope.household_id,
       envelope_id: envelope.id,
       amount: value,
       note: note.trim() || null,
       spent_on: date || defaultDateFor(envelope.month),
-    })
+    }
+    // Une dépense récurrente crée aussi son modèle côté serveur: elle demande donc le réseau.
+    if (repeat !== 'none' && !navigator.onLine) return setError(t('repeatNeedsNetwork'))
+    setBusy(true)
+    const result = await mutate({ kind: 'insert', table: 'expenses', row })
+    if (!result.error && repeat !== 'none') {
+      const r = await makeRecurring({ envelope, expense: row, every: Number(repeat) as Frequency })
+      if (r.error) {
+        setBusy(false)
+        return setError(/recurring_expenses/.test(r.error) ? t('errMigration0008') : `${t('errSave')} (${r.error})`)
+      }
+    }
     setBusy(false)
     if (result.error) return setError(`${t('errSave')} (${result.error})`)
     onAdded(result.queued)
@@ -65,7 +80,7 @@ export default function QuickAddSheet({
               onChange={(e) => setAmount(e.target.value)}
               className="field-line w-44 text-center text-4xl font-medium tabular-nums"
             />
-            <span className="text-2xl text-muted">€</span>
+            <span className="text-2xl text-muted">{currencySymbol(i18n.language)}</span>
           </div>
 
           <div role="radiogroup" aria-label={t('chooseEnvelope')} className="grid max-h-56 grid-cols-4 gap-1 overflow-y-auto">
@@ -95,6 +110,18 @@ export default function QuickAddSheet({
           </Field>
           <Field label={t('date')}>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field-line" />
+          </Field>
+          <Field label={t('repeat')}>
+            <Select
+              variant="field"
+              label={t('repeat')}
+              value={repeat}
+              options={[
+                { value: 'none' as const, label: t('repeatNone') },
+                ...FREQUENCIES.map((f) => ({ value: `${f}` as const, label: t(`repeat_${f}`) })),
+              ]}
+              onChange={setRepeat}
+            />
           </Field>
           {error && <p className="text-sm text-over">{error}</p>}
           <button disabled={busy} className={PRIMARY}>

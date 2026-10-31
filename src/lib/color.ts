@@ -66,3 +66,10 @@ export function emojiTints(emoji: string): string[] {
   tintCache.set(emoji, tints)
   return tints
 }
+
+/** Couleur utilisable dans un graphique: un fond pastel (emoji) est ravivé, le reste est gardé tel quel. */
+export function chartColor(color: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(color)) return color
+  const [h, s, l] = hexToHsl(color)
+  return l > 75 ? hslToHex(h, Math.max(s, 50), 60) : color
+}

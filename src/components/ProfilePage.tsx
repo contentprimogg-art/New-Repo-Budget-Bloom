@@ -23,7 +23,7 @@ import {
 } from '../lib/theme'
 import Avatar from './Avatar'
 import ConfirmButton from './ConfirmButton'
-import InviteCode from './InviteCode'
+import HouseholdCard from './HouseholdCard'
 import LanguageSwitch from './LanguageSwitch'
 import Card from './ui/Card'
 import ColorSheet from './ui/ColorSheet'
@@ -240,9 +240,7 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
 
       <Card title={t('language')} description={t('languageHint')} action={<LanguageSwitch full />} />
 
-      <Card title={t('inviteTitle')} description={t('inviteHint')}>
-        <InviteCode householdId={householdId} />
-      </Card>
+      <HouseholdCard userId={userId} />
 
       <Card title={t('data')} description={t('dataHint')}>
         <div className="flex flex-wrap gap-3">

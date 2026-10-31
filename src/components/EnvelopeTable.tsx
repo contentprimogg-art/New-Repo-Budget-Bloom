@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { mutate, type Op } from '../lib/expenses'
 import { defaultDateFor, fmtMoney, parseAmount } from '../lib/format'
 import { settleExpense, syncLinkedAmount } from '../lib/savings'
-import { supabase } from '../lib/supabase'
 import { countsAsSpent, type Envelope, type Expense, type ExpenseStatus } from '../lib/types'
+import { uuid } from '../lib/uuid'
 import KeepDialog from './KeepDialog'
 import Select, { type Align } from './Select'
 
@@ -135,19 +136,21 @@ export default function EnvelopeTable({
   const goDown = (row: number, col: Col) =>
     root.current?.querySelector<HTMLElement>(`[data-row="${row + 1}"][data-col="${col}"]`)?.focus()
 
-  async function run(op: PromiseLike<{ error: { message: string } | null }>) {
-    const { error } = await op
-    if (error) setError(`${t('errSave')} (${error.message})`)
+  // Modifications et suppressions possibles hors-ligne (mises en attente puis envoyées).
+  async function run(op: Op) {
+    const { error } = await mutate(op)
+    if (error) setError(`${t('errSave')} (${error})`)
     else {
       setError(null)
       onChanged()
     }
   }
 
-  const patch = (id: string, values: Record<string, unknown>) =>
-    run(supabase.from('expenses').update(values).eq('id', id))
+  const patch = (id: string, values: Record<string, unknown>) => run({ kind: 'update', table: 'expenses', id, values })
 
   async function setStatus(e: Expense, status: ExpenseStatus, savingsId?: string | null) {
+    // Le remboursement touche aussi l'épargne: il demande le réseau.
+    if (!navigator.onLine) return setError(t('needsNetwork'))
     const failure = await settleExpense({
       householdId: envelope.household_id,
       expense: e,
@@ -164,7 +167,7 @@ export default function EnvelopeTable({
 
   const remove = (id: string) => {
     setConfirmId(null)
-    return run(supabase.from('expenses').delete().eq('id', id))
+    return run({ kind: 'delete', table: 'expenses', id })
   }
 
   const statusOptions: { value: ExpenseStatus; label: string }[] = [
@@ -373,15 +376,20 @@ function NewRow({
     const value = parseAmount(amount)
     if (!(value > 0)) return onError(t('errAmount'))
     setBusy(true)
-    const { error } = await supabase.from('expenses').insert({
-      household_id: envelope.household_id,
-      envelope_id: envelope.id,
-      amount: value,
-      note: note.trim() || null,
-      spent_on: date || defaultDateFor(envelope.month),
+    const { error } = await mutate({
+      kind: 'insert',
+      table: 'expenses',
+      row: {
+        id: uuid(),
+        household_id: envelope.household_id,
+        envelope_id: envelope.id,
+        amount: value,
+        note: note.trim() || null,
+        spent_on: date || defaultDateFor(envelope.month),
+      },
     })
     setBusy(false)
-    if (error) return onError(`${t('errSave')} (${error.message})`)
+    if (error) return onError(`${t('errSave')} (${error})`)
     setNote('')
     setAmount('')
     noteRef.current?.focus()

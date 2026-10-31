@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export interface BarSeries {
@@ -62,7 +62,6 @@ export default function GroupedBars({
   const { t, i18n } = useTranslation()
   const [ref, width] = useWidth()
   const [hover, setHover] = useState<number | null>(null)
-  const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
 
   const n = categories.length
   const plotW = Math.max(width - MARGIN.left - MARGIN.right, 10)
@@ -84,15 +83,6 @@ export default function GroupedBars({
       <div ref={ref} className="relative">
         {width > 0 && (
           <svg width={width} height={height} role="img" aria-label={ariaLabel} className="block overflow-visible">
-            {/* Remplissage hachuré (style du moodboard), un angle par série */}
-            <defs>
-              {series.map((s, si) => (
-                <pattern key={s.key} id={`${uid}-${si}`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform={`rotate(${si % 2 ? -45 : 45})`}>
-                  <rect width="5" height="5" style={{ fill: s.color, fillOpacity: 0.14 }} />
-                  <rect width="2" height="5" style={{ fill: s.color }} />
-                </pattern>
-              ))}
-            </defs>
             {ticks.map((v) => (
               <g key={v}>
                 <line x1={MARGIN.left} x2={width - MARGIN.right} y1={y(v)} y2={y(v)} style={{ stroke: 'var(--border)' }} strokeWidth={1} />
@@ -114,9 +104,7 @@ export default function GroupedBars({
                       <path
                         key={s.key}
                         d={roundedTop(gx + si * (barW + GAP), y(s.values[i]), barW, h)}
-                        fill={`url(#${uid}-${si})`}
-                        style={{ stroke: s.color }}
-                        strokeWidth={1}
+                        style={{ fill: s.color }}
                       />
                     ) : null
                   })}

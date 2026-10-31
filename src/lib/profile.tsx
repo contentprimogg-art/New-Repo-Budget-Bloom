@@ -82,6 +82,15 @@ export function ProfileProvider({ session, children }: { session: Session; child
     if (firstName) remember(SAVED_NAME, firstName)
   }, [firstName])
 
+  // Copie du profil dans la table « profiles » pour que les autres membres du foyer voient le nom et la
+  // photo (sans la migration 0008, la table n'existe pas encore: l'erreur est simplement ignorée).
+  useEffect(() => {
+    void supabase
+      .from('profiles')
+      .upsert({ id: session.user.id, first_name: firstName, last_name: lastName, avatar_path: avatarPath, updated_at: new Date().toISOString() })
+      .then(({ error }) => error && console.warn('profiles:', error.message))
+  }, [session.user.id, firstName, lastName, avatarPath])
+
   // La palette enregistrée dans le compte suit la personne d'un appareil à l'autre.
   const paletteKey = palette ? `${palette.id}:${palette.accent}` : null
   useEffect(() => {

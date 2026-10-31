@@ -25,8 +25,8 @@ export async function listMonths(householdId: string): Promise<{ months: string[
 export async function loadStats(
   householdId: string,
   months: string[],
-): Promise<{ envelopes: StatEnvelope[]; balances: Record<string, Balance>; error: string | null }> {
-  if (months.length === 0) return { envelopes: [], balances: {}, error: null }
+): Promise<{ envelopes: StatEnvelope[]; balances: Record<string, Balance>; incomes: Record<string, number>; error: string | null }> {
+  if (months.length === 0) return { envelopes: [], balances: {}, incomes: {}, error: null }
   const [env, bal] = await Promise.all([
     supabase
       .from('envelopes')
@@ -43,7 +43,11 @@ export async function loadStats(
       .in('month', months),
   ])
   const failure = env.error ?? bal.error
-  if (failure) return { envelopes: [], balances: {}, error: failure.message }
+  if (failure) return { envelopes: [], balances: {}, incomes: {}, error: failure.message }
+  // Revenus: facultatifs tant que la migration 0008 n'est pas passée.
+  const inc = await supabase.from('incomes').select('month, amount').eq('household_id', householdId).in('month', months)
+  const incomes: Record<string, number> = {}
+  for (const i of inc.data ?? []) incomes[i.month] = (incomes[i.month] ?? 0) + Number(i.amount)
   const envelopes = (env.data ?? []).map((e) => ({
     ...e,
     budget: Number(e.budget),
@@ -56,7 +60,7 @@ export async function loadStats(
       end: b.end_balance == null ? null : Number(b.end_balance),
     }
   }
-  return { envelopes, balances, error: null }
+  return { envelopes, balances, incomes, error: null }
 }
 
 export const spentOf = (e: StatEnvelope) =>
@@ -196,6 +200,7 @@ export async function buildBackup(householdId: string) {
     eq('savings_milestones'),
     eq('savings_entries'),
   ])
+  const [incomes, recurring] = await Promise.all([eq('incomes'), eq('recurring_expenses')])
   const failure = [envelopes, expenses, balances, savings, milestones, entries].find((r) => r.error)
   if (failure?.error) return { json: null, error: failure.error.message }
   return {
@@ -209,6 +214,8 @@ export async function buildBackup(householdId: string) {
         savings_envelopes: savings.data,
         savings_milestones: milestones.data,
         savings_entries: entries.data,
+        incomes: incomes.error ? [] : incomes.data,
+        recurring_expenses: recurring.error ? [] : recurring.data,
       },
       null,
       2,

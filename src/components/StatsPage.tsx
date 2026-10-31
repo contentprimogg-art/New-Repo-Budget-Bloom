@@ -15,13 +15,14 @@ import {
   type Balance,
   type StatEnvelope,
 } from '../lib/stats'
+import { chartColor } from '../lib/color'
 import { IconBadge, badgeColor, colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
 import type { Tip } from '../lib/tips'
 import GroupedBars from './GroupedBars'
 import Select from './Select'
 import ScriptTitle from './ScriptTitle'
-import HatchedDonut from './ui/HatchedDonut'
+import Donut from './ui/Donut'
 import PageShell from './ui/PageShell'
 import Tips from './Tips'
 
@@ -42,6 +43,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
   const [range, setRange] = useState<(typeof RANGES)[number]>(6)
   const [envs, setEnvs] = useState<StatEnvelope[]>([])
   const [balances, setBalances] = useState<Record<string, Balance>>({})
+  const [incomes, setIncomes] = useState<Record<string, number>>({})
   const [focus, setFocus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -66,6 +68,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
       setError(null)
       setEnvs(r.envelopes)
       setBalances(r.balances)
+      setIncomes(r.incomes)
     })
   }, [householdId, monthsKey, version])
 
@@ -81,7 +84,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
           key: e.id,
           label: e.name,
           value: mode === 'spent' ? spentOf(e) : e.budget,
-          color: badgeColor(e.color ?? colorForIndex(i)),
+          color: chartColor(badgeColor(e.color ?? colorForIndex(i))),
           icon: e.icon,
           rawColor: e.color ?? colorForIndex(i),
         }))
@@ -240,7 +243,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
                   <Wallet size={14} /> {t('budgeted')}
                 </button>
               </div>
-              <HatchedDonut
+              <Donut
                 size={300}
                 gapColor="var(--paper)"
                 ariaLabel={`${t('breakdown')} ${fmtMonth(focusMonth, lng)}`}
@@ -284,6 +287,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
                 <thead>
                   <tr className="bg-accent-soft text-xs uppercase tracking-wide text-accent-strong">
                     <th className={`${th} text-left`}>{t('csvMonth')}</th>
+                    <th className={`${th} text-right`}>{t('incomes')}</th>
                     <th className={`${th} text-right`}>{t('budgeted')}</th>
                     <th className={`${th} text-right`}>{t('spent')}</th>
                     <th className={`${th} text-right`}>{t('gap')}</th>
@@ -298,6 +302,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
                     return (
                       <tr key={m.month} className="border-t border-border">
                         <th className={`${td} text-left font-medium capitalize`}>{fmtMonth(m.month, lng)}</th>
+                        <td className={`${td} text-right text-ok-ink`}>{incomes[m.month] ? money(incomes[m.month]) : '—'}</td>
                         <td className={`${td} text-right`}>{money(m.budget)}</td>
                         <td className={`${td} text-right`}>{money(m.spent)}</td>
                         <td className={`${td} text-right font-medium ${gap < 0 ? 'text-over' : ''}`}>

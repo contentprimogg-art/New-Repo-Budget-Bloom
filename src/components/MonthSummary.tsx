@@ -5,7 +5,7 @@ import { fmtMoney, fmtMonth, parseAmount } from '../lib/format'
 import { useDataVersion } from '../lib/realtime'
 import { supabase } from '../lib/supabase'
 import { shiftMonth } from '../lib/types'
-import StripeBar from './ui/StripeBar'
+import ProgressBar from './ui/ProgressBar'
 import SummaryColumns from './ui/SummaryColumns'
 
 type Field = 'start_balance' | 'end_balance'
@@ -76,6 +76,7 @@ export default function MonthSummary({
   month,
   totalBudget,
   totalSpent,
+  totalIncome = 0,
   totalOver,
   overCount,
 }: {
@@ -83,6 +84,7 @@ export default function MonthSummary({
   month: string
   totalBudget: number
   totalSpent: number
+  totalIncome?: number
   totalOver: number
   overCount: number
 }) {
@@ -135,8 +137,10 @@ export default function MonthSummary({
 
   const { start, end } = balances
   const left = totalBudget - totalSpent
-  const toAllocate = start == null ? null : start - totalBudget
-  const estimated = start == null ? null : start - totalSpent
+  // Argent disponible ce mois-ci: solde de début + revenus (dès qu'au moins l'un des deux est connu).
+  const available = start == null && totalIncome === 0 ? null : (start ?? 0) + totalIncome
+  const toAllocate = available == null ? null : available - totalBudget
+  const estimated = available == null ? null : available - totalSpent
   const gap = end != null && estimated != null ? end - estimated : null
 
   return (
@@ -144,15 +148,15 @@ export default function MonthSummary({
       <SummaryColumns
         items={[
           { label: t('colBalance'), value: start == null ? '—' : money(start), tone: 'var(--chart-2)' },
-          { label: t('budgeted'), value: money(totalBudget), tone: 'var(--ok)' },
-          { label: t('spent'), value: money(totalSpent), tone: 'var(--accent-strong)', valueClassName: left < 0 ? 'text-over' : '' },
+          { label: t('incomes'), value: money(totalIncome), tone: 'var(--ok)' },
+          { label: t('spentShort'), value: money(totalSpent), tone: 'var(--accent-strong)', valueClassName: left < 0 ? 'text-over' : '' },
         ]}
       />
-      <StripeBar spent={totalSpent} budget={totalBudget} label={`${t('spent')} ${money(totalSpent)} / ${money(totalBudget)}`} />
+      <ProgressBar spent={totalSpent} budget={totalBudget} label={`${t('spent')} ${money(totalSpent)} / ${money(totalBudget)}`} />
       <p className="text-center text-sm">
         {left >= 0 ? (
           <>
-            <span className="font-semibold text-ok-ink">{money(left)}</span> {t('leftOf')} <span className="font-semibold">{money(totalBudget)}</span>
+            <span className="font-semibold text-ok-ink">{money(left)}</span> {t('leftOfBudgeted')} <span className="font-semibold">{money(totalBudget)}</span> {t('budgetedWord')}
           </>
         ) : (
           <span className="font-semibold text-over">{t('overBy', { amount: money(-left) })}</span>

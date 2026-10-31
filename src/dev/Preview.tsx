@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import EnvelopeRow from '../components/budget/EnvelopeRow'
+import IncomeList from '../components/budget/IncomeList'
 import GroupSection from '../components/budget/GroupSection'
 import QuickAddSheet from '../components/budget/QuickAddSheet'
 import { TransactionRow } from '../components/EnvelopeDetail'
@@ -10,18 +11,22 @@ import LanguageSwitch from '../components/LanguageSwitch'
 import MilestoneBar from '../components/MilestoneBar'
 import ScriptTitle from '../components/ScriptTitle'
 import Tips from '../components/Tips'
+import AvatarStack from '../components/ui/AvatarStack'
+import BloomButton from '../components/ui/BloomButton'
 import Card from '../components/ui/Card'
 import ColorSheet from '../components/ui/ColorSheet'
 import Fab from '../components/ui/Fab'
-import HatchedDonut from '../components/ui/HatchedDonut'
+import Donut from '../components/ui/Donut'
 import PageShell from '../components/ui/PageShell'
 import Sheet from '../components/ui/Sheet'
 import Splash from '../components/ui/Splash'
-import StripeBar from '../components/ui/StripeBar'
+import ProgressBar from '../components/ui/ProgressBar'
 import SummaryColumns from '../components/ui/SummaryColumns'
 import { fmtMoney } from '../lib/format'
+import { chartColor } from '../lib/color'
 import { badgeColor } from '../lib/icons'
-import type { Envelope, Expense } from '../lib/types'
+import type { Member } from '../lib/household'
+import type { Envelope, Expense, Income } from '../lib/types'
 
 // Aperçu des composants avec des données fictives (développement uniquement, aucune requête).
 // Variantes: #/__preview, #/__preview-quick, #/__preview-picker, #/__preview-color, #/__preview-splash
@@ -32,6 +37,15 @@ const ENVS: Envelope[] = [
   { ...base, id: '3', name: 'Essence', budget: 150, color: '#4F8FDB', icon: 'fuel', group_id: 'g1' },
   { ...base, id: '4', name: 'Loyer', budget: 900, color: '#A07FE0', icon: 'home', group_id: null },
   { ...base, id: '5', name: 'Cadeaux de Noël', budget: 200, color: '#FDE6D6', icon: '🧸', group_id: null, recurring: false },
+]
+const INCOMES: Income[] = [
+  { id: 'i1', household_id: 'h', month: '2026-10', label: 'Salaire', amount: 2350, received_on: '2026-10-01', recurring: true, icon: '💼', color: '#E3E8FB' },
+  { id: 'i2', household_id: 'h', month: '2026-10', label: 'Vente Vinted', amount: 42, received_on: '2026-10-18', recurring: false, icon: '🛍️', color: '#FBE3EC' },
+]
+const MEMBERS: Member[] = [
+  { id: 'a', name: 'Primo', avatarUrl: null, isMe: true },
+  { id: 'b', name: 'Boomette', avatarUrl: '/apple-touch-icon.png', isMe: false },
+  { id: 'c', name: 'Léa', avatarUrl: null, isMe: false },
 ]
 const SPENT: Record<string, number> = { '1': 378.42, '2': 117, '3': 96.5, '4': 900, '5': 45 }
 const EXPENSES: Expense[] = [
@@ -78,7 +92,7 @@ export default function Preview() {
               { label: 'Dépensé', value: money(totalSpent), tone: 'var(--accent-strong)' },
             ]}
           />
-          <StripeBar spent={totalSpent} budget={totalBudget} label="total" />
+          <ProgressBar spent={totalSpent} budget={totalBudget} label="total" />
           <p className="text-center text-sm">
             <span className="font-semibold text-ok-ink">{money(totalBudget - totalSpent)}</span> restants sur{' '}
             <span className="font-semibold">{money(totalBudget)}</span>
@@ -86,6 +100,17 @@ export default function Preview() {
         </div>
       </Card>
       <Tips tips={[{ key: 'tipHomeRealloc', params: { name: 'Sorties', amount: money(17), from: 'Cadeaux de Noël' } }]} title="Pistes pour limiter le dépassement" />
+
+      <ScriptTitle>Revenus</ScriptTitle>
+      <IncomeList incomes={INCOMES} onEdit={() => {}} />
+
+      <Card title="Qui a ajouté" description="Photos qui se chevauchent, découpées en croissant">
+        <div className="flex items-center gap-6">
+          <AvatarStack members={MEMBERS.slice(0, 2)} size={36} />
+          <AvatarStack members={MEMBERS} size={28} />
+          <AvatarStack members={[...MEMBERS, ...MEMBERS.map((m) => ({ ...m, id: m.id + '2' }))]} size={22} />
+        </div>
+      </Card>
 
       <ScriptTitle>Enveloppes</ScriptTitle>
       <Card>
@@ -99,13 +124,15 @@ export default function Preview() {
         </ul>
       </Card>
 
+      <BloomButton label="Nouvelle enveloppe" onClick={() => {}} />
+
       <ScriptTitle>Répartition</ScriptTitle>
-      <HatchedDonut
+      <Donut
         size={300}
         gapColor="var(--paper)"
         ariaLabel="répartition"
         format={money}
-        slices={ENVS.map((e) => ({ key: e.id, label: e.name, value: SPENT[e.id], color: badgeColor(e.color), icon: e.icon }))}
+        slices={ENVS.map((e) => ({ key: e.id, label: e.name, value: SPENT[e.id], color: chartColor(badgeColor(e.color)), icon: e.icon }))}
         center={<span className="text-xl font-medium tabular-nums">{money(totalSpent)}</span>}
       />
 

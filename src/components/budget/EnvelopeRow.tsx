@@ -1,14 +1,28 @@
 import { Repeat } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { fmtMoney } from '../../lib/format'
+import { useOptionalHousehold } from '../../lib/household'
 import { IconBadge } from '../../lib/icons'
 import { envelopeStats, type Envelope } from '../../lib/types'
-import StripeBar from '../ui/StripeBar'
+import AvatarStack from '../ui/AvatarStack'
+import ProgressBar from '../ui/ProgressBar'
 
 // Une enveloppe dans la liste: pastille, nom, « Restant » ou « Dépassé de », dépensé / budget,
-// et une fine barre à rayures. Les lignes sont séparées par des pointillés (dans la liste parente).
-export default function EnvelopeRow({ envelope, spent, onOpen }: { envelope: Envelope; spent: number; onOpen: () => void }) {
+// et une fine barre de progression. Les lignes sont séparées par des pointillés (dans la liste parente).
+export default function EnvelopeRow({
+  envelope,
+  spent,
+  contributors = [],
+  onOpen,
+}: {
+  envelope: Envelope
+  spent: number
+  contributors?: string[]
+  onOpen: () => void
+}) {
   const { t, i18n } = useTranslation()
+  const household = useOptionalHousehold()
+  const people = household?.shared ? contributors.map((id) => household.memberById[id]).filter((m) => !!m) : []
   const money = (n: number) => fmtMoney(n, i18n.language)
   const stats = envelopeStats(envelope.budget, spent)
   const over = stats.overBy > 0
@@ -23,8 +37,9 @@ export default function EnvelopeRow({ envelope, spent, onOpen }: { envelope: Env
               <span className="truncate">{envelope.name}</span>
               {envelope.recurring && <Repeat aria-label={t('recurringLabel')} size={12} className="shrink-0 text-muted" />}
             </p>
-            <p className={`text-xs ${over ? 'font-semibold text-over' : 'text-muted'}`}>
+            <p className={`flex items-center gap-2 text-xs ${over ? 'font-semibold text-over' : 'text-muted'}`}>
               {over ? t('overBy', { amount: money(stats.overBy) }) : `${t('remaining')} : ${money(stats.remaining)}`}
+              {people.length > 0 && <AvatarStack members={people} size={18} />}
             </p>
           </div>
           <div className="text-right">
@@ -34,7 +49,7 @@ export default function EnvelopeRow({ envelope, spent, onOpen }: { envelope: Env
             </p>
           </div>
         </div>
-        <StripeBar
+        <ProgressBar
           size="sm"
           spent={stats.spent}
           budget={envelope.budget}

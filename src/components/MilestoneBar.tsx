@@ -1,9 +1,8 @@
 import { Check } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { fmtMoneyShort } from '../lib/format'
 
-const stripes = (color: string) => `repeating-linear-gradient(90deg, ${color} 0 2px, transparent 2px 5px)`
-
-// Barre de progression d'épargne en rayures, découpée en sections par les paliers.
+// Barre de progression d'épargne (fond gris, progression colorée), découpée en sections par les paliers.
 // Sans objectif explicite, le plus grand palier sert d'objectif.
 export default function MilestoneBar({
   balance,
@@ -18,7 +17,7 @@ export default function MilestoneBar({
 }) {
   const { t, i18n } = useTranslation()
   // Étiquettes sans centimes: plus courtes, elles ne se chevauchent pas entre paliers proches.
-  const short = (n: number) => new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+  const short = (n: number) => fmtMoneyShort(n, i18n.language)
   const goal = target ?? (milestones.length ? Math.max(...milestones) : null)
   if (!goal) return null
 
@@ -37,8 +36,8 @@ export default function MilestoneBar({
         {sections.map((s) => {
           const fill = Math.min(1, Math.max(0, (balance - s.start) / (s.end - s.start)))
           return (
-            <div key={s.end} className="h-4 overflow-hidden" style={{ flexGrow: s.end - s.start, flexBasis: 0, backgroundImage: stripes('var(--border)') }}>
-              <div className="h-full" style={{ width: `${fill * 100}%`, backgroundImage: stripes('var(--accent-strong)') }} />
+            <div key={s.end} className="h-3 overflow-hidden rounded-full bg-track" style={{ flexGrow: s.end - s.start, flexBasis: 0 }}>
+              <div className="h-full rounded-full bg-accent-strong transition-[width] duration-500" style={{ width: `${fill * 100}%` }} />
             </div>
           )
         })}

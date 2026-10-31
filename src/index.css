@@ -16,6 +16,8 @@
   --grain-opacity: 0.72;
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .2 0 0 0 0 .18 0 0 0 .14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --scrim: rgb(20 18 24 / 0.32);
+  /* Piste grise des barres et des anneaux (seule la progression est colorée) */
+  --track: color-mix(in oklab, var(--text) 9%, transparent);
   color-scheme: light;
   --ok: #4fae78;
   /* Vert lisible pour du texte (le vert des rayures est trop clair pour être lu) */
@@ -69,6 +71,7 @@
   --font-sans: 'Montserrat Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --color-bg: var(--bg);
   --color-scrim: var(--scrim);
+  --color-track: var(--track);
   --color-paper: var(--paper);
   --color-text: var(--text);
   --color-muted: var(--muted);

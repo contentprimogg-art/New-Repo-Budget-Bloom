@@ -1,4 +1,3 @@
-import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtMoney } from '../lib/format'
@@ -9,6 +8,7 @@ import MilestoneBar from './MilestoneBar'
 import SavingsDetail from './SavingsDetail'
 import ScriptTitle from './ScriptTitle'
 import SavingsSheet from './savings/SavingsSheet'
+import BloomButton from './ui/BloomButton'
 import Card from './ui/Card'
 import PageShell from './ui/PageShell'
 import SummaryColumns from './ui/SummaryColumns'
@@ -87,12 +87,7 @@ export default function SavingsPage({ householdId }: { householdId: string }) {
         </Card>
       )}
       {data && (
-        <button
-          onClick={() => setCreating(true)}
-          className="no-print flex items-center justify-center gap-2 rounded-3xl border border-dashed border-accent py-4 text-sm font-medium text-accent-strong hover:bg-accent-soft/50"
-        >
-          <Plus size={16} /> {t('addSavings')}
-        </button>
+        <BloomButton label={t('addSavings')} onClick={() => setCreating(true)} />
       )}
 
       {creating && (

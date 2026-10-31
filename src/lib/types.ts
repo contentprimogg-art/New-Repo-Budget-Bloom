@@ -11,6 +11,9 @@ export interface Envelope {
   sort: number
   recurring: boolean
   group_id?: string | null
+  /** Identifiant commun à « la même » enveloppe d'un mois à l'autre (migration 0008). */
+  lineage_id?: string | null
+  created_by?: string | null
 }
 
 export interface EnvelopeGroup {
@@ -35,6 +38,35 @@ export interface Expense {
   spent_on: string
   status: ExpenseStatus
   settled_on: string | null
+  created_by?: string | null
+  recurring_id?: string | null
+  /** Vrai pour une dépense saisie hors-ligne, pas encore envoyée. */
+  pending?: boolean
+}
+
+export interface RecurringExpense {
+  id: string
+  household_id: string
+  lineage_id: string
+  note: string | null
+  amount: number
+  every_months: 1 | 2 | 3 | 6 | 12
+  day: number
+  next_month: string
+}
+
+export interface Income {
+  id: string
+  household_id: string
+  month: string
+  label: string
+  amount: number
+  received_on: string
+  recurring: boolean
+  icon: string | null
+  color: string | null
+  created_by?: string | null
+  pending?: boolean
 }
 
 // Une dépense remboursée « libérée » ne pèse plus sur l'enveloppe; « mise de côté » oui.
