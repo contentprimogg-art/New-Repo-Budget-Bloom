@@ -242,7 +242,7 @@ export default function EnvelopeDetail({
                         {t(`repeat_${r.every_months}`)} · {t('nextOccurrence', { month: fmtMonth(r.next_month, lng) })}
                       </span>
                     </span>
-                    <span className="text-[15px] font-medium tabular-nums">{money(r.amount)}</span>
+                    <span className="min-w-0 max-w-[48%] text-right text-[15px] font-medium tabular-nums [overflow-wrap:anywhere]">{money(r.amount)}</span>
                     <button
                       type="button"
                       aria-label={t('stopRecurring')}
@@ -508,8 +508,8 @@ export function TransactionRow({
         <button onClick={() => setOpen(!open)} aria-expanded={open} className="flex flex-col pb-3 text-left">
           <span className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted">{fmtDate(expense.spent_on, lng)}</span>
           <span className={`mt-1 line-clamp-2 min-h-10 text-sm ${struck} ${expense.note ? '' : 'text-muted'}`}>{expense.note || t('unnamed')}</span>
-          <span className={`mt-1 text-lg font-medium tabular-nums ${struck}`}>{money}</span>
-          {original && <span className="text-[11px] text-muted tabular-nums">{original}</span>}
+          <span className={`max-w-full text-lg font-medium tabular-nums [overflow-wrap:anywhere] ${struck}`}>{money}</span>
+          {original && <span className="max-w-full text-[11px] text-muted tabular-nums [overflow-wrap:anywhere]">{original}</span>}
           {status}
         </button>
         {open && details}
@@ -535,9 +535,9 @@ export function TransactionRow({
           {status}
         </span>
         {household?.shared && author && <MemberAvatar member={author} size={20} />}
-        <span className="flex shrink-0 flex-col items-end">
-          <span className={`text-[15px] font-medium tabular-nums ${struck}`}>{money}</span>
-          {original && <span className="text-[11px] text-muted tabular-nums">{original}</span>}
+        <span className="flex min-w-0 max-w-[48%] flex-col items-end">
+          <span className={`text-right text-[15px] font-medium tabular-nums [overflow-wrap:anywhere] ${struck}`}>{money}</span>
+          {original && <span className="text-right text-[11px] text-muted tabular-nums [overflow-wrap:anywhere]">{original}</span>}
         </span>
       </button>
       {open && details}

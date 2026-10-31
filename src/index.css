@@ -92,6 +92,65 @@ body,
   min-height: 100dvh;
 }
 
+.install-frame {
+  display: flex;
+  height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+}
+.install-banner {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: calc(0.625rem + env(safe-area-inset-top)) 1rem 0.625rem;
+}
+.install-frame-content {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+.install-frame-content .app-shell {
+  height: 100%;
+}
+.install-frame-content > .min-h-dvh {
+  height: 100%;
+  min-height: 0;
+}
+.install-dialog-backdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--scrim);
+  padding: 1.25rem;
+}
+.install-dialog {
+  position: relative;
+  width: min(100%, 24rem);
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  padding: 1.5rem;
+  color: var(--text);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.2);
+}
+.install-dialog-close {
+  position: absolute;
+  top: 0.875rem;
+  right: 0.875rem;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 9999px;
+  color: var(--muted);
+}
+
 body {
   background-color: var(--paper);
   color: var(--text);

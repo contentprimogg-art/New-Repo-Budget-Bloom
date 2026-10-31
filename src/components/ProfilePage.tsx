@@ -22,6 +22,7 @@ import {
   type ThemeMode,
 } from '../lib/theme'
 import Avatar from './Avatar'
+import ChangeEmailCard from './ChangeEmailCard'
 import ConfirmButton from './ConfirmButton'
 import CompanionCard from './CompanionCard'
 import HouseholdCard from './HouseholdCard'
@@ -193,6 +194,8 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
           </button>
         </form>
       </Card>
+
+      <ChangeEmailCard />
 
       <Card title={t('appearance')} description={t('paletteHint')}>
         <div role="radiogroup" aria-label={t('theme')} className="mb-5 inline-flex rounded-2xl border border-border bg-surface p-1 text-sm">

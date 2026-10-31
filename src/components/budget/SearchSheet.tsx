@@ -285,11 +285,11 @@ export default function SearchSheet({
                 </span>
                 {household?.shared && author && <MemberAvatar member={author} size={20} />}
                 {Number.isFinite(h.amount) && (
-                  <span className="flex shrink-0 flex-col items-end">
-                    <span className={`text-[15px] font-medium tabular-nums ${kind === 'incomes' || (kind === 'savings' && h.amount > 0) ? 'text-ok-ink' : ''}`}>
+                  <span className="min-w-0 max-w-[48%]">
+                    <span className={`block text-right text-[15px] font-medium tabular-nums [overflow-wrap:anywhere] ${kind === 'incomes' || (kind === 'savings' && h.amount > 0) ? 'text-ok-ink' : ''}`}>
                       {signed}
                     </span>
-                    {h.original && <span className="text-[11px] text-muted tabular-nums">{h.original}</span>}
+                    {h.original && <span className="block text-right text-[11px] text-muted tabular-nums [overflow-wrap:anywhere]">{h.original}</span>}
                   </span>
                 )}
               </button>

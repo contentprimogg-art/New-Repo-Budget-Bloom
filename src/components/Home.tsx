@@ -58,7 +58,6 @@ export default function Home({ householdId }: { householdId: string }) {
   const pending = useOutboxCount()
   const nowMonth = currentMonth()
   const [month, setMonth] = useState(nowMonth)
-  const [firstMonth, setFirstMonth] = useState<string | null>(null)
   const [rolled, setRolled] = useState(0)
   const { id: selectedId, month: selectedMonth } = useSelected()
   const [envelopes, setEnvelopes] = useState<Envelope[]>([])
@@ -84,13 +83,11 @@ export default function Home({ householdId }: { householdId: string }) {
       if (error) console.warn('rollover_month:', error.message)
       else if (typeof data === 'number' && data > 0) setRolled(data)
     }
-    const [first, env, grp, inc] = await Promise.all([
-      supabase.from('envelopes').select('month').eq('household_id', householdId).order('month').limit(1).maybeSingle(),
+    const [env, grp, inc] = await Promise.all([
       supabase.from('envelopes').select('*').eq('household_id', householdId).eq('month', month).order('sort').order('created_at'),
       supabase.from('envelope_groups').select('*').eq('household_id', householdId).order('sort').order('created_at'),
       supabase.from('incomes').select('*').eq('household_id', householdId).eq('month', month).order('received_on'),
     ])
-    if (first.data) setFirstMonth(first.data.month)
     if (env.error) {
       setLoadError(env.error.message)
       setLoaded(true)
@@ -207,9 +204,8 @@ export default function Home({ householdId }: { householdId: string }) {
           <button
             type="button"
             onClick={() => setMonth(shiftMonth(month, -1))}
-            disabled={!firstMonth || month <= firstMonth}
             aria-label={t('prevMonth')}
-            className="grid size-8 place-items-center rounded-full disabled:opacity-30"
+            className="grid size-8 place-items-center rounded-full"
           >
             <ChevronLeft size={16} />
           </button>
@@ -217,9 +213,8 @@ export default function Home({ householdId }: { householdId: string }) {
           <button
             type="button"
             onClick={() => setMonth(shiftMonth(month, 1))}
-            disabled={month >= nowMonth}
             aria-label={t('nextMonth')}
-            className="grid size-8 place-items-center rounded-full disabled:opacity-30"
+            className="grid size-8 place-items-center rounded-full"
           >
             <ChevronRight size={16} />
           </button>

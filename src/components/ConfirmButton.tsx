@@ -19,18 +19,18 @@ export default function ConfirmButton({
   const [confirming, setConfirming] = useState(false)
   return confirming ? (
     <button
+      type="button"
       autoFocus
       onClick={() => {
         setConfirming(false)
         onConfirm()
       }}
-      onBlur={() => setConfirming(false)}
       className={confirmClassName}
     >
       {confirmLabel}
     </button>
   ) : (
-    <button onClick={() => setConfirming(true)} aria-label={ariaLabel} className={className}>
+    <button type="button" onClick={() => setConfirming(true)} aria-label={ariaLabel} className={className}>
       {label}
     </button>
   )

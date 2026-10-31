@@ -93,7 +93,7 @@ export default function SavingsPage({ householdId }: { householdId: string }) {
                           {kids.length > 0 && ` · ${t('subEnvelopesCount', { count: kids.length })}`}
                         </p>
                       </div>
-                      <span className="text-[15px] font-medium tabular-nums">{money(total)}</span>
+                      <span className="min-w-0 max-w-[48%] text-right text-[15px] font-medium tabular-nums [overflow-wrap:anywhere]">{money(total)}</span>
                     </div>
                     <MilestoneBar balance={total} target={e.target} milestones={milestonesOf(data, e.id)} format={money} />
                   </a>

@@ -42,17 +42,15 @@ export default function MilestoneBar({
           )
         })}
       </div>
-      <div className="relative h-5 text-[11px]">
-        {stops.map((s, i) => {
+      <div className="grid text-[10px]" style={{ gridTemplateColumns: `repeat(${stops.length}, minmax(0, 1fr))` }}>
+        {stops.map((s) => {
           const done = balance >= s
-          const last = i === stops.length - 1
           return (
             <span
               key={s}
-              className={`absolute top-0 flex items-center gap-0.5 whitespace-nowrap tabular-nums ${done ? 'font-semibold text-accent-strong' : 'text-muted'}`}
-              style={{ left: `${(s / goal) * 100}%`, transform: last ? 'translateX(-100%)' : 'translateX(-50%)' }}
+              className={`flex min-w-0 items-center justify-center gap-0.5 text-center tabular-nums [overflow-wrap:anywhere] ${done ? 'font-semibold text-accent-strong' : 'text-muted'}`}
             >
-              {done && <Check size={11} strokeWidth={3} />}
+              {done && <Check className="shrink-0" size={11} strokeWidth={3} />}
               {short(s)}
             </span>
           )

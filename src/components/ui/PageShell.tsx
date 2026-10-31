@@ -56,7 +56,7 @@ export default function PageShell({
                 <ScriptTitle as="h1" className="truncate pr-2 text-[3.25rem] leading-[1.1]">
                   {title}
                 </ScriptTitle>
-                {subtitle && <div className="mt-0.5 text-sm text-muted">{subtitle}</div>}
+                {subtitle && <div className="mt-0.5 text-sm text-muted [overflow-wrap:anywhere]">{subtitle}</div>}
               </div>
             </div>
             <div className="mt-1.5 flex shrink-0 items-center gap-3">

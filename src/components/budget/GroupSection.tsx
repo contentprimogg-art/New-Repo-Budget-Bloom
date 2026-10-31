@@ -94,7 +94,7 @@ export default function GroupSection({
             </span>
           )}
         </p>
-        <span className={`shrink-0 tabular-nums ${spent > budget ? 'font-semibold text-over' : 'text-muted'}`}>
+        <span className={`min-w-0 max-w-[60%] text-right tabular-nums [overflow-wrap:anywhere] ${spent > budget ? 'font-semibold text-over' : 'text-muted'}`}>
           {money(spent)} / {money(budget)}
         </span>
       </div>

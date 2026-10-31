@@ -106,8 +106,8 @@ export default function SavingsDetail({
               />
               <MilestoneBar balance={total} target={envelope.target} milestones={milestones} format={money} />
               {children.length > 0 && (
-                <p className={`text-center text-sm ${own < 0 ? 'font-medium text-over' : 'text-muted'}`}>
-                  {t('unallocated')}: <span className="font-medium tabular-nums">{money(own)}</span>
+                <p className={`text-center text-sm [overflow-wrap:anywhere] ${own < 0 ? 'font-medium text-over' : 'text-muted'}`}>
+                  {t('unallocated')}: <span className="font-medium tabular-nums [overflow-wrap:anywhere]">{money(own)}</span>
                   {own < 0 && ` · ${t('overAllocated')}`}
                 </p>
               )}
@@ -139,7 +139,7 @@ export default function SavingsDetail({
                           {e.source_expense_id && ` · ${t('tagRefund')}`}
                         </p>
                       </div>
-                      <span className={`text-[15px] font-medium tabular-nums ${e.amount < 0 ? 'text-over' : 'text-ok-ink'}`}>
+                      <span className={`min-w-0 max-w-[55%] text-right text-[15px] font-medium tabular-nums [overflow-wrap:anywhere] ${e.amount < 0 ? 'text-over' : 'text-ok-ink'}`}>
                         {e.amount > 0 ? '+' : ''}
                         {money(e.amount)}
                       </span>
@@ -311,7 +311,7 @@ function SubEnvelopes({
                 <div className="flex items-center gap-3">
                   <IconBadge icon={c.icon ?? 'piggy'} color={c.color} size="sm" />
                   <span className="min-w-0 flex-1 truncate text-[15px]">{c.name}</span>
-                  <span className="text-[15px] font-medium tabular-nums">{money(bal)}</span>
+                  <span className="min-w-0 max-w-[48%] text-right text-[15px] font-medium tabular-nums [overflow-wrap:anywhere]">{money(bal)}</span>
                 </div>
                 <MilestoneBar balance={bal} target={c.target} milestones={milestonesOf(data, c.id)} format={money} />
               </a>
@@ -425,7 +425,7 @@ function Milestones({
       <ul className="flex flex-wrap gap-2">
         {mine.map((m) => (
           <li key={m.id} className="flex items-center gap-1 rounded-full border border-accent/60 py-1 pl-3 pr-1.5 text-sm">
-            <span className="font-medium tabular-nums text-accent-strong">{fmtMoney(m.amount, i18n.language)}</span>
+            <span className="font-medium tabular-nums text-accent-strong [overflow-wrap:anywhere]">{fmtMoney(m.amount, i18n.language)}</span>
             <button
               aria-label={t('delete')}
               onClick={async () => {

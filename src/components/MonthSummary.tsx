@@ -153,7 +153,7 @@ export default function MonthSummary({
         ]}
       />
       <ProgressBar spent={totalSpent} budget={totalBudget} label={`${t('spent')} ${money(totalSpent)} / ${money(totalBudget)}`} />
-      <p className="text-center text-sm">
+      <p className="text-center text-sm [overflow-wrap:anywhere]">
         {left >= 0 ? (
           <>
             <span className="font-semibold text-ok-ink">{money(left)}</span> {t('leftOfBudgeted')} <span className="font-semibold">{money(totalBudget)}</span> {t('budgetedWord')}
@@ -185,29 +185,29 @@ export default function MonthSummary({
             <BalanceRow label={t('endBalance')} value={asField(end)} saved={flash === 'end_balance'} onSave={save('end_balance')} />
             {toAllocate != null && (
               <li className="flex items-center justify-between gap-3 py-2.5 text-sm" title={t('toAllocateHint')}>
-                <span>
+                <span className="min-w-0 flex-1">
                   {t('toAllocate')}
                   <span className="block text-xs text-muted">{t('toAllocateHint')}</span>
                 </span>
-                <span className={`font-medium tabular-nums ${toAllocate < 0 ? 'text-over' : ''}`}>{money(toAllocate)}</span>
+                <span className={`min-w-0 max-w-[55%] text-right font-medium tabular-nums [overflow-wrap:anywhere] ${toAllocate < 0 ? 'text-over' : ''}`}>{money(toAllocate)}</span>
               </li>
             )}
             {estimated != null && (
               <li className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                <span>
+                <span className="min-w-0 flex-1">
                   {t('estimatedBalance')}
                   <span className="block text-xs text-muted">{t('estimatedHint')}</span>
                 </span>
-                <span className="font-medium tabular-nums">{money(estimated)}</span>
+                <span className="min-w-0 max-w-[55%] text-right font-medium tabular-nums [overflow-wrap:anywhere]">{money(estimated)}</span>
               </li>
             )}
             {gap != null && (
               <li className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                <span>
+                <span className="min-w-0 flex-1">
                   {t('balanceGap')}
                   <span className="block text-xs text-muted">{t('balanceGapHint')}</span>
                 </span>
-                <span className="font-medium tabular-nums">
+                <span className="min-w-0 max-w-[55%] text-right font-medium tabular-nums [overflow-wrap:anywhere]">
                   {gap > 0 ? '+' : ''}
                   {money(gap)}
                 </span>

@@ -1,0 +1,36 @@
+<!--
+  Modèle de l'e-mail « Change Email Address ».
+  À coller dans Supabase: Authentication → Emails → Templates → « Change email address ».
+  Objet suggéré: Confirmez votre nouvelle adresse e-mail Budget Bloom
+  Variables utilisées: {{ .Email }}, {{ .NewEmail }}, {{ .ConfirmationURL }}
+  Activez « Secure email change » pour demander aussi la confirmation de l'ancienne adresse.
+-->
+<div style="margin:0;padding:32px 16px;background:#FAFAFC;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1A1D20;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#FFFFFF;border:1px solid #ECECF1;border-radius:20px;">
+    <tr>
+      <td style="padding:32px 32px 8px;text-align:center;">
+        <div style="display:inline-block;width:72px;height:72px;line-height:72px;border-radius:20px;background:#F3E9DC;font-size:38px;">🌸</div>
+        <h1 style="margin:16px 0 4px;font-size:24px;font-weight:600;">Confirmez votre nouvelle adresse</h1>
+        <p style="margin:0;color:#6B7078;font-size:15px;">Budget Bloom</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 32px 8px;font-size:15px;line-height:1.6;">
+        <p style="margin:0 0 12px;">Une demande a été faite pour remplacer <strong>{{ .Email }}</strong> par <strong>{{ .NewEmail }}</strong>.</p>
+        <p style="margin:0;">Pour confirmer cette demande, ouvrez le lien ci-dessous depuis la boîte de réception qui a reçu ce message.</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 32px 24px;text-align:center;">
+        <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 28px;background:#E46A9E;color:#FFFFFF;text-decoration:none;font-weight:600;font-size:16px;border-radius:12px;">Confirmer le changement</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 32px 32px;font-size:13px;line-height:1.6;color:#6B7078;">
+        <p style="margin:0 0 8px;">Le bouton ne fonctionne pas ? Copiez ce lien dans votre navigateur:<br><span style="word-break:break-all;color:#E46A9E;">{{ .ConfirmationURL }}</span></p>
+        <p style="margin:0;">Vous n'êtes pas à l'origine de cette demande ? Ignorez ce message; votre adresse ne changera pas sans confirmation.</p>
+      </td>
+    </tr>
+  </table>
+  <p style="max-width:480px;margin:16px auto 0;text-align:center;font-size:12px;color:#9A9FA6;">Budget Bloom 🌸</p>
+</div>

@@ -118,7 +118,7 @@ export default function Donut({
         {focused ? (
           <>
             <span className="max-w-full truncate text-xs text-muted">{focused.label}</span>
-            <span className="text-base font-semibold tabular-nums">{format(focused.value)}</span>
+            <span className="min-w-0 max-w-full text-base font-semibold tabular-nums [overflow-wrap:anywhere]">{format(focused.value)}</span>
             <span className="text-xs text-muted">{Math.round((focused.value / total) * 100)}%</span>
           </>
         ) : (

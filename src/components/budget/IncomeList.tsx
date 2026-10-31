@@ -30,7 +30,9 @@ export default function IncomeList({ incomes, onEdit }: { incomes: Income[]; onE
                   <span className="text-xs text-muted">{fmtDate(income.received_on, i18n.language)}</span>
                 </span>
                 {household?.shared && author && <MemberAvatar member={author} size={20} />}
-                <span className="text-[15px] font-medium tabular-nums text-ok-ink">+{fmtMoney(income.amount, i18n.language)}</span>
+                <span className="min-w-0 max-w-[48%] text-right text-[15px] font-medium tabular-nums text-ok-ink [overflow-wrap:anywhere]">
+                  +{fmtMoney(income.amount, i18n.language)}
+                </span>
               </button>
             </li>
           )

@@ -252,7 +252,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
                 center={
                   <>
                     <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">{mode === 'spent' ? t('spent') : t('budgeted')}</span>
-                    <span className="text-xl font-medium tabular-nums">{money(breakdownTotal)}</span>
+                    <span className="min-w-0 max-w-full text-xl font-medium tabular-nums [overflow-wrap:anywhere]">{money(breakdownTotal)}</span>
                   </>
                 }
               />
@@ -262,7 +262,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
                     <IconBadge icon={b.icon} color={b.rawColor} size="sm" />
                     <span className="min-w-0 flex-1 truncate text-[15px]">{b.label}</span>
                     <span className="text-xs tabular-nums text-muted">{breakdownTotal ? Math.round((b.value / breakdownTotal) * 100) : 0}%</span>
-                    <span className="w-24 text-right text-[15px] font-medium tabular-nums">{money(b.value)}</span>
+                    <span className="min-w-0 max-w-[30%] text-right text-[15px] font-medium tabular-nums [overflow-wrap:anywhere]">{money(b.value)}</span>
                   </li>
                 ))}
               </ul>

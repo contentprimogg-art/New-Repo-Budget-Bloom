@@ -42,9 +42,9 @@ export default function EnvelopeRow({
               {people.length > 0 && <AvatarStack members={people} size={18} />}
             </p>
           </div>
-          <div className="text-right">
-            <p className={`text-[15px] font-medium tabular-nums ${over ? 'text-over' : ''}`}>{money(stats.spent)}</p>
-            <p className="text-xs tabular-nums text-muted">
+          <div className="min-w-0 max-w-[48%] text-right">
+            <p className={`text-[15px] font-medium tabular-nums [overflow-wrap:anywhere] ${over ? 'text-over' : ''}`}>{money(stats.spent)}</p>
+            <p className="text-xs tabular-nums text-muted [overflow-wrap:anywhere]">
               {stats.percent}% · {money(envelope.budget)}
             </p>
           </div>

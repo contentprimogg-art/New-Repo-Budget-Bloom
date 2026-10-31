@@ -1,0 +1,24 @@
+<!--
+  Modèle de notification « Email address changed ».
+  À coller dans Supabase: Authentication → Emails → Templates → « Email address changed ».
+  Objet suggéré: L'adresse e-mail de votre compte Budget Bloom a changé
+  Variables utilisées: {{ .OldEmail }}, {{ .Email }}
+-->
+<div style="margin:0;padding:32px 16px;background:#FAFAFC;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1A1D20;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#FFFFFF;border:1px solid #ECECF1;border-radius:20px;">
+    <tr>
+      <td style="padding:32px 32px 8px;text-align:center;">
+        <div style="display:inline-block;width:72px;height:72px;line-height:72px;border-radius:20px;background:#F3E9DC;font-size:38px;">🌸</div>
+        <h1 style="margin:16px 0 4px;font-size:24px;font-weight:600;">Votre adresse a été modifiée</h1>
+        <p style="margin:0;color:#6B7078;font-size:15px;">Notification de sécurité Budget Bloom</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 32px 32px;font-size:15px;line-height:1.6;">
+        <p style="margin:0 0 12px;">L'adresse e-mail de votre compte Budget Bloom est passée de <strong>{{ .OldEmail }}</strong> à <strong>{{ .Email }}</strong>.</p>
+        <p style="margin:0;">Vous n'êtes pas à l'origine de ce changement ? Sécurisez votre boîte e-mail et contactez l'assistance de votre projet Supabase.</p>
+      </td>
+    </tr>
+  </table>
+  <p style="max-width:480px;margin:16px auto 0;text-align:center;font-size:12px;color:#9A9FA6;">Budget Bloom 🌸</p>
+</div>

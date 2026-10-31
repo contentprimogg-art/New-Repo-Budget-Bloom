@@ -31,9 +31,10 @@ export default function Auth() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [mode, setMode] = useState<'in' | 'up'>('in')
+  const [mode, setMode] = useState<'in' | 'up' | 'reset'>('in')
   const [errors, setErrors] = useState<Errors>({})
   const [sentTo, setSentTo] = useState<string | null>(null)
+  const [resetSent, setResetSent] = useState(false)
   const [busy, setBusy] = useState(false)
 
   // Message connu traduit; sinon message générique suivi du détail renvoyé par Supabase.
@@ -49,7 +50,7 @@ export default function Auth() {
     if (mode === 'up' && !firstName.trim()) e.firstName = t('errFirstNameRequired')
     if (!email.trim()) e.email = t('errEmailRequired')
     else if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.email = t('errEmailInvalid')
-    if (!password) e.password = t('errPasswordRequired')
+    if (mode !== 'reset' && !password) e.password = t('errPasswordRequired')
     else if (mode === 'up' && password.length < 6) e.password = t('errPasswordShort')
     return e
   }
@@ -60,6 +61,16 @@ export default function Auth() {
     setErrors(found)
     if (Object.keys(found).length) return
     setBusy(true)
+    if (mode === 'reset') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}${window.location.pathname}?reset-password=1`,
+      })
+      if (error) setErrors({ form: describe(error) })
+      else setResetSent(true)
+      setBusy(false)
+      return
+    }
+
     const creds = { email: email.trim(), password }
     if (mode === 'in') {
       const { error } = await supabase.auth.signInWithPassword(creds)
@@ -76,8 +87,9 @@ export default function Auth() {
   }
 
   function switchMode() {
-    setMode(mode === 'in' ? 'up' : 'in')
+    setMode(mode === 'up' ? 'in' : 'up')
     setErrors({})
+    setResetSent(false)
   }
 
   const input = 'field-line w-full text-base'
@@ -93,7 +105,9 @@ export default function Auth() {
           <ScriptTitle as="h1" className="text-6xl">
             Budget Bloom
           </ScriptTitle>
-          <p className="mt-1 text-sm text-muted">{mode === 'in' ? t('welcomeBack') : t('welcomeNew')}</p>
+          <p className="mt-1 text-sm text-muted">
+            {mode === 'in' ? t('welcomeBack') : mode === 'up' ? t('welcomeNew') : t('passwordResetIntro')}
+          </p>
         </div>
 
         {sentTo ? (
@@ -105,6 +119,21 @@ export default function Auth() {
               onClick={() => {
                 setSentTo(null)
                 setMode('in')
+              }}
+              className="text-sm text-accent-strong underline"
+            >
+              {t('backToSignIn')}
+            </button>
+          </div>
+        ) : resetSent ? (
+          <div role="status" className="flex flex-col gap-3 rounded-3xl bg-accent-soft p-5 text-center">
+            <p className="font-medium">{t('checkInbox')}</p>
+            <p className="text-sm text-muted">{t('passwordResetSent')}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('in')
+                setResetSent(false)
               }}
               className="text-sm text-accent-strong underline"
             >
@@ -154,19 +183,21 @@ export default function Auth() {
               />
               {errors.email && <p className="mt-1 px-2 text-sm text-over">{errors.email}</p>}
             </div>
-            <div>
-              <input
-                type="password"
-                autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
-                placeholder={t('password')}
-                aria-label={t('password')}
-                aria-invalid={!!errors.password}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={input}
-              />
-              {errors.password && <p className="mt-1 px-2 text-sm text-over">{errors.password}</p>}
-            </div>
+            {mode !== 'reset' && (
+              <div>
+                <input
+                  type="password"
+                  autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
+                  placeholder={t('password')}
+                  aria-label={t('password')}
+                  aria-invalid={!!errors.password}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={input}
+                />
+                {errors.password && <p className="mt-1 px-2 text-sm text-over">{errors.password}</p>}
+              </div>
+            )}
             {errors.form && (
               <p role="alert" className="rounded-2xl bg-over/10 px-4 py-3 text-sm text-over">
                 {errors.form}
@@ -176,11 +207,24 @@ export default function Auth() {
               disabled={busy}
               className="mt-1 rounded-full bg-accent-strong px-6 py-3.5 text-base font-semibold text-on-accent shadow-md shadow-accent/30"
             >
-              {busy ? t('loading') : mode === 'in' ? t('signIn') : t('signUp')}
+              {busy ? t('loading') : mode === 'in' ? t('signIn') : mode === 'up' ? t('signUp') : t('sendResetLink')}
             </button>
-            <button type="button" onClick={switchMode} className="text-sm text-muted underline">
-              {mode === 'in' ? t('noAccountYet') : t('alreadyHaveAccount')}
-            </button>
+            {mode === 'in' && (
+              <button type="button" onClick={() => { setMode('reset'); setErrors({}) }} className="text-sm text-muted underline">
+                {t('forgotPassword')}
+              </button>
+            )}
+            {mode !== 'reset' && (
+              <button type="button" onClick={switchMode} className="text-sm text-muted">
+                {mode === 'in' ? t('noAccountYetPrefix') : t('alreadyHaveAccountPrefix')}
+                <span className="underline">{mode === 'in' ? t('noAccountYetAction') : t('alreadyHaveAccountAction')}</span>
+              </button>
+            )}
+            {mode === 'reset' && (
+              <button type="button" onClick={() => { setMode('in'); setErrors({}) }} className="text-sm text-muted underline">
+                {t('backToSignIn')}
+              </button>
+            )}
           </form>
         )}
         <LanguageSwitch />
