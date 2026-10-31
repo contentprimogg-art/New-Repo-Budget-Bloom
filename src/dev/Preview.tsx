@@ -1,3 +1,4 @@
+import SearchSheet from '../components/budget/SearchSheet'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -29,7 +30,7 @@ import type { Member } from '../lib/household'
 import type { Envelope, Expense, Income } from '../lib/types'
 
 // Aperçu des composants avec des données fictives (développement uniquement, aucune requête).
-// Variantes: #/__preview, #/__preview-quick, #/__preview-picker, #/__preview-color, #/__preview-splash
+// Variantes: #/__preview, #/__preview-quick, #/__preview-picker, #/__preview-color, #/__preview-splash, #/__preview-search
 const base = { household_id: 'h', month: '2026-10', kind: 'spending' as const, parent_id: null, sort: 0, recurring: true }
 const ENVS: Envelope[] = [
   { ...base, id: '1', name: 'Courses', budget: 500, color: '#E8749E', icon: 'cart', group_id: 'g1' },
@@ -156,6 +157,7 @@ export default function Preview() {
           <IconPicker icon={look.icon} color={look.color} onChange={setLook} />
         </Sheet>
       )}
+      {hash.includes('search') && <SearchSheet householdId="preview" onClose={() => {}} onOpen={() => {}} />}
       {hash.includes('color') && <ColorSheet title="Couleur libre" value="#C2185B" onClose={() => {}} onPick={() => {}} />}
     </PageShell>
   )

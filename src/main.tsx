@@ -14,6 +14,19 @@ applyThemeMode(storedThemeMode())
 // En mode automatique, la barre du navigateur suit le passage clair/sombre du téléphone.
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncThemeColor)
 
+// Mises à jour: quand une nouvelle version est mise en ligne, l'app installée (iPhone, Android)
+// la récupère au retour au premier plan puis se recharge d'elle-même, sans rester sur l'ancienne.
+if ('serviceWorker' in navigator && !import.meta.env.DEV) {
+  let hadController = !!navigator.serviceWorker.controller
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController) window.location.reload()
+    hadController = true
+  })
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void navigator.serviceWorker.getRegistration().then((r) => r?.update())
+  })
+}
+
 // Aperçu des composants, uniquement en développement (captures d'écran de contrôle).
 const Preview = import.meta.env.DEV ? lazy(() => import('./dev/Preview')) : null
 const showPreview = Preview && window.location.hash.startsWith('#/__preview')
