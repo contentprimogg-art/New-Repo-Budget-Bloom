@@ -59,31 +59,3 @@ export function envelopeTips(args: {
   }
   return tips
 }
-
-// Vue d'ensemble: pour chaque enveloppe dépassée, d'où pourrait venir la somme.
-export function reallocTips(
-  envelopes: { name: string; budget: number; spent: number }[],
-  money: (n: number) => string,
-): Tip[] {
-  const spare = envelopes
-    .map((e) => ({ name: e.name, remaining: e.budget - e.spent }))
-    .filter((e) => e.remaining > 0)
-  const over = envelopes
-    .map((e) => ({ name: e.name, overBy: e.spent - e.budget }))
-    .filter((e) => e.overBy > 0)
-    .sort((a, b) => b.overBy - a.overBy)
-
-  const tips: Tip[] = []
-  for (const o of over) {
-    spare.sort((a, b) => b.remaining - a.remaining)
-    const source = spare[0]
-    if (!source) {
-      tips.push({ key: 'tipHomeNoSpare', params: { name: o.name, amount: money(o.overBy) } })
-      continue
-    }
-    const moved = Math.min(o.overBy, source.remaining)
-    tips.push({ key: 'tipHomeRealloc', params: { name: o.name, amount: money(moved), from: source.name } })
-    source.remaining -= moved
-  }
-  return tips
-}

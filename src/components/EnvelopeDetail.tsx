@@ -25,6 +25,7 @@ import QuickAddSheet from './budget/QuickAddSheet'
 import EnvelopeTable from './EnvelopeTable'
 import KeepDialog from './KeepDialog'
 import ScriptTitle from './ScriptTitle'
+import { AdviceList } from './Companion'
 import Tips from './Tips'
 import { MemberAvatar } from './ui/AvatarStack'
 import Fab from './ui/Fab'
@@ -75,6 +76,7 @@ export default function EnvelopeDetail({
   envelopes,
   groups,
   siblings = [],
+  advice,
   onChanged,
   onClose,
 }: {
@@ -82,6 +84,8 @@ export default function EnvelopeDetail({
   envelopes: Envelope[]
   groups: EnvelopeGroup[]
   siblings?: Sibling[]
+  /** Conseils du compagnon pour cette enveloppe (mois en cours). */
+  advice?: React.ComponentProps<typeof AdviceList>
   onChanged: () => void
   onClose: () => void
 }) {
@@ -211,6 +215,9 @@ export default function EnvelopeDetail({
             </div>
           </Card>
 
+          {advice && envelope.month === currentMonth() ? (
+            <AdviceList {...advice} />
+          ) : (
           <Tips
             tips={envelopeTips({
               envelope,
@@ -222,6 +229,7 @@ export default function EnvelopeDetail({
               money,
             })}
           />
+          )}
           {recurring.length > 0 && (
             <Card title={t('recurringExpenses')} description={t('recurringExpensesHint')}>
               <ul className="-my-2 divide-y divide-dashed divide-muted/30">

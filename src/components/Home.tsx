@@ -2,12 +2,12 @@ import { ChevronLeft, ChevronRight, CloudOff, Plus, Search, Settings } from 'luc
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { mergePending, useOutboxCount } from '../lib/expenses'
-import { fmtMoney, fmtMonth } from '../lib/format'
+import { fmtMonth } from '../lib/format'
 import { colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
 import { useHash } from '../lib/route'
 import { supabase } from '../lib/supabase'
-import { reallocTips } from '../lib/tips'
+import { useAdvice } from '../lib/useAdvice'
 import { countsAsSpent, currentMonth, shiftMonth, type Envelope, type EnvelopeGroup, type Income } from '../lib/types'
 import EnvelopeSheet from './budget/EnvelopeSheet'
 import GroupSection from './budget/GroupSection'
@@ -21,7 +21,7 @@ import EnvelopeRow from './budget/EnvelopeRow'
 import EnvelopeDetail from './EnvelopeDetail'
 import MonthSummary from './MonthSummary'
 import ScriptTitle from './ScriptTitle'
-import Tips from './Tips'
+import Companion from './Companion'
 import BloomButton from './ui/BloomButton'
 import Fab from './ui/Fab'
 import { PRIMARY } from './ui/Field'
@@ -54,7 +54,6 @@ function useSelected() {
 export default function Home({ householdId }: { householdId: string }) {
   const { t, i18n } = useTranslation()
   const lng = i18n.language
-  const money = (n: number) => fmtMoney(n, lng)
   const version = useDataVersion()
   const pending = useOutboxCount()
   const nowMonth = currentMonth()
@@ -73,6 +72,7 @@ export default function Home({ householdId }: { householdId: string }) {
   const [sheet, setSheet] = useState<SheetState>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const rolledOver = useRef(false)
+  const companion = useAdvice(householdId)
   const requestId = useRef(0)
 
   const load = useCallback(async () => {
@@ -162,6 +162,11 @@ export default function Home({ householdId }: { householdId: string }) {
         siblings={envelopes
           .filter((e) => e.id !== selected.id)
           .map((e) => ({ name: e.name, remaining: e.budget - (spentBy[e.id] ?? 0) }))}
+        advice={
+          companion.enabled
+            ? { advice: companion.advice.filter((a) => a.envelopeId === selected.id), hide: companion.hide, apply: companion.apply }
+            : undefined
+        }
         onChanged={load}
         onClose={() => {
           window.location.hash = ''
@@ -265,14 +270,11 @@ export default function Home({ householdId }: { householdId: string }) {
               />
             </Card>
           )}
-          {loaded && !loadError && (
-            <Tips
-              title={t('tipsOverTitle')}
-              tips={reallocTips(
-                envelopes.map((e) => ({ name: e.name, budget: e.budget, spent: spentBy[e.id] ?? 0 })),
-                money,
-              )}
-            />
+          {loaded && !loadError && companion.enabled && month === nowMonth && envelopes.length > 0 && (
+            <>
+              <ScriptTitle>{t('companionTitle')}</ScriptTitle>
+              <Companion advice={companion.advice} hide={companion.hide} apply={companion.apply} />
+            </>
           )}
           {loaded && !loadError && (
             <>

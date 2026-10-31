@@ -23,6 +23,7 @@ import {
 } from '../lib/theme'
 import Avatar from './Avatar'
 import ConfirmButton from './ConfirmButton'
+import CompanionCard from './CompanionCard'
 import HouseholdCard from './HouseholdCard'
 import HouseholdsCard from './HouseholdSwitch'
 import LanguageSwitch from './LanguageSwitch'
@@ -240,6 +241,8 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
       </Card>
 
       <Card title={t('language')} description={t('languageHint')} action={<LanguageSwitch full />} />
+
+      <CompanionCard />
 
       <HouseholdCard userId={userId} />
       <HouseholdsCard />

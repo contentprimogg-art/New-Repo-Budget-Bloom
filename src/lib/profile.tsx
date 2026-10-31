@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { roundIcon, storeFavicon } from './favicon'
 import { supabase } from './supabase'
 import { applyPalette, paletteFrom, storePalette, type Palette } from './theme'
 import type { Profile } from './types'
@@ -35,9 +36,10 @@ function remember(key: string, value: string | null) {
   }
 }
 
-async function toDataUrl(url: string): Promise<string | null> {
-  const blob = await fetch(url).then((r) => (r.ok ? r.blob() : null))
-  if (!blob || blob.size > 400_000) return null
+// Photo gardée pour l'écran de connexion: pas de GIF (une image figée d'une animation rend mal,
+// le dégradé est plus joli) ni de fichier trop lourd pour le stockage de l'appareil.
+function toDataUrl(blob: Blob): Promise<string | null> {
+  if (blob.type === 'image/gif' || blob.size > 400_000) return Promise.resolve(null)
   return new Promise((resolve) => {
     const reader = new FileReader()
     reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
@@ -63,12 +65,20 @@ export function ProfileProvider({ session, children }: { session: Session; child
       if (!avatarPath) {
         setAvatarUrl(null)
         remember(SAVED_PHOTO, null)
+        storeFavicon(null)
         return
       }
       const { data } = await supabase.storage.from('avatars').createSignedUrl(avatarPath, 3600)
       if (cancelled || !data?.signedUrl) return
       setAvatarUrl(data.signedUrl)
-      remember(SAVED_PHOTO, await toDataUrl(data.signedUrl).catch(() => null))
+      const blob = await fetch(data.signedUrl)
+        .then((r) => (r.ok ? r.blob() : null))
+        .catch(() => null)
+      if (cancelled || !blob) return
+      remember(SAVED_PHOTO, await toDataUrl(blob))
+      // L'onglet du navigateur prend la photo du compte.
+      const icon = await roundIcon(blob)
+      if (!cancelled && icon) storeFavicon(icon)
     }
     void sign()
     const timer = setInterval(() => void sign(), 50 * 60 * 1000)
