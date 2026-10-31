@@ -125,30 +125,54 @@ button:disabled {
   opacity: 0.6;
 }
 
-/* Champs de saisie aux couleurs de l'accent */
-input,
-select {
+/* Champs de saisie aux couleurs de l'accent. Dans la couche « base »: une classe utilitaire
+   (ex. focus:shadow-none sur le champ de recherche) peut ainsi les remplacer. */
+@layer base {
+  /* Champs de saisie aux couleurs de l'accent */
+  input,
+  select {
+    outline: none;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+    accent-color: var(--accent-strong);
+  }
+  input:hover {
+    border-color: var(--accent);
+  }
+  /* Focus: une seule bordure de 2px (1px de bordure + 1px de trait de même couleur, sans halo flou). */
+  input:focus,
+  select:focus {
+    border-color: var(--accent-strong);
+    box-shadow: 0 0 0 1px var(--accent-strong);
+  }
+  input[aria-invalid='true'],
+  input[aria-invalid='true']:focus {
+    border-color: var(--over);
+  }
+  input[aria-invalid='true']:focus {
+    box-shadow: 0 0 0 1px var(--over);
+  }
+}
+
+/* Surlignage du texte sélectionné et contour de focus clavier: couleur du thème, pas le bleu du navigateur.
+   Contour tracé vers l'intérieur pour ne jamais être coupé par une zone qui défile. */
+::selection {
+  background: color-mix(in oklab, var(--accent-strong) 30%, transparent);
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: -2px;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
   outline: none;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+}
+html {
   accent-color: var(--accent-strong);
-}
-input:hover {
-  border-color: var(--accent);
-}
-/* Focus: une seule bordure de 2px (1px de bordure + 1px de trait de même couleur, sans halo flou). */
-input:focus,
-select:focus {
-  border-color: var(--accent-strong);
-  box-shadow: 0 0 0 1px var(--accent-strong);
-}
-input[aria-invalid='true'],
-input[aria-invalid='true']:focus {
-  border-color: var(--over);
-}
-input[aria-invalid='true']:focus {
-  box-shadow: 0 0 0 1px var(--over);
+  caret-color: var(--accent-strong);
 }
 
 button {
@@ -196,22 +220,11 @@ button[role='combobox']:not(:disabled):active {
   box-shadow: none;
 }
 
-/* Bouton rond « + » aquarelle: le fond est déformé par le filtre #watercolor (index.html),
-   l'icône reste nette au-dessus. */
+/* Bouton rond « + »: un simple disque à la couleur du thème. */
 .fab {
   border-radius: 9999px;
-  box-shadow: 0 10px 24px -8px color-mix(in oklab, var(--accent-strong) 70%, transparent);
-}
-.fab::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 9999px;
-  background:
-    radial-gradient(circle at 30% 26%, color-mix(in oklab, var(--accent-strong) 40%, white) 0%, transparent 46%),
-    radial-gradient(circle at 70% 78%, color-mix(in oklab, var(--accent-strong) 82%, black) 0%, transparent 55%),
-    var(--accent-strong);
-  filter: url(#watercolor);
+  background: var(--accent-strong);
+  box-shadow: 0 8px 20px -8px color-mix(in oklab, var(--accent-strong) 70%, transparent);
 }
 
 /* Emojis: police couleur du système (sur iPhone, ce sont les emojis d'iOS). */

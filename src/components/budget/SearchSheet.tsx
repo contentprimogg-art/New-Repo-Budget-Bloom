@@ -228,7 +228,7 @@ export default function SearchSheet({
       </label>
 
       <div className="flex flex-col gap-2">
-        <div role="radiogroup" aria-label={t('period')} className="flex gap-1.5 overflow-x-auto">
+        <div role="radiogroup" aria-label={t('period')} className="-m-1 flex gap-1.5 overflow-x-auto p-1">
           {(['1', '3', '12', 'all'] as const).map((p) => (
             <button key={p} type="button" role="radio" aria-checked={period === p} onClick={() => setPeriod(p)} className={chip(period === p)}>
               {p === 'all' ? t('allTime') : t('lastMonths', { count: Number(p) })}
@@ -236,7 +236,7 @@ export default function SearchSheet({
           ))}
         </div>
         {kind === 'expenses' && (
-          <div role="radiogroup" aria-label={t('colStatus')} className="flex gap-1.5 overflow-x-auto">
+          <div role="radiogroup" aria-label={t('colStatus')} className="-m-1 flex gap-1.5 overflow-x-auto p-1">
             {(['all', 'counted', 'settled'] as const).map((s) => (
               <button key={s} type="button" role="radio" aria-checked={status === s} onClick={() => setStatus(s)} className={chip(status === s)}>
                 {s === 'all' ? t('allStatuses') : s === 'counted' ? t('statusActive') : t('refund')}
@@ -245,7 +245,7 @@ export default function SearchSheet({
           </div>
         )}
         {household?.shared && (
-          <div role="radiogroup" aria-label={t('addedBy')} className="flex items-center gap-1.5 overflow-x-auto">
+          <div role="radiogroup" aria-label={t('addedBy')} className="-m-1 flex items-center gap-1.5 overflow-x-auto p-1">
             <button type="button" role="radio" aria-checked={member === 'all'} onClick={() => setMember('all')} className={chip(member === 'all')}>
               {t('everyone')}
             </button>

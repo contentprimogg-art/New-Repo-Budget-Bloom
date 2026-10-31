@@ -10,6 +10,8 @@ export type Align = 'left' | 'center' | 'right'
 
 const TEXT_ALIGN: Record<Align, string> = { left: 'text-left', center: 'text-center', right: 'text-right' }
 const OPTION_HEIGHT = 40
+/** Au-delà, la liste défile (6 options et demie visibles: la demi-option montre qu'il y a une suite). */
+const MAX_VISIBLE = 6.5
 
 // Liste déroulante aux couleurs du thème: le champ et la liste forment une seule forme,
 // seuls les coins extérieurs sont arrondis. La liste est dans un portail (position fixe)
@@ -47,7 +49,7 @@ export default function Select<T extends string>({
   function openList() {
     const r = button.current!.getBoundingClientRect()
     const below = window.innerHeight - r.bottom
-    setUp(below < options.length * OPTION_HEIGHT + 12 && r.top > below)
+    setUp(below < Math.min(options.length, MAX_VISIBLE) * OPTION_HEIGHT + 12 && r.top > below)
     setRect(r)
     setActive(Math.max(0, options.findIndex((o) => o.value === value)))
     setOpen(true)
@@ -62,6 +64,14 @@ export default function Select<T extends string>({
   useEffect(() => {
     if (!open) return
     const close = () => setOpen(false)
+    // Défiler dans la liste elle-même ne la ferme pas; défiler la page, si (elle ne suivrait plus le champ).
+    const onScroll = (e: Event) => {
+      if (!list.current?.contains(e.target as Node)) close()
+    }
+    // Option choisie visible dès l'ouverture d'une longue liste.
+    const ul = list.current
+    const selected = ul?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (ul && selected) ul.scrollTop = selected.offsetTop - ul.clientHeight / 2 + OPTION_HEIGHT / 2
     const onDown = (e: Event) => {
       const n = e.target as Node
       if (!button.current?.contains(n) && !list.current?.contains(n)) close()
@@ -69,12 +79,12 @@ export default function Select<T extends string>({
     document.addEventListener('mousedown', onDown)
     document.addEventListener('touchstart', onDown)
     window.addEventListener('resize', close)
-    window.addEventListener('scroll', close, true)
+    window.addEventListener('scroll', onScroll, true)
     return () => {
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('touchstart', onDown)
       window.removeEventListener('resize', close)
-      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('scroll', onScroll, true)
     }
   }, [open])
 
@@ -157,8 +167,9 @@ export default function Select<T extends string>({
               left: rect.left,
               width: rect.width,
               ...(up ? { bottom: window.innerHeight - rect.top } : { top: rect.bottom }),
+              maxHeight: Math.min(MAX_VISIBLE * OPTION_HEIGHT + 8, (up ? rect.top : window.innerHeight - rect.bottom) - 8),
             }}
-            className={`fade-up z-50 overflow-hidden border-2 border-accent-strong bg-surface py-1 ${
+            className={`fade-up z-50 overflow-y-auto overscroll-contain border-2 border-accent-strong bg-surface py-1 ${
               up ? 'rounded-t-lg border-b-0' : 'rounded-b-lg border-t-0'
             }`}
           >

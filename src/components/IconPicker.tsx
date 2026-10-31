@@ -148,7 +148,7 @@ function EmojiCatalog({ selected, onPick }: { selected: string | null; onPick: (
         />
       </label>
       {!query && catalog && (
-        <div role="tablist" aria-label={t('emojis')} className="flex gap-1 overflow-x-auto pb-1">
+        <div role="tablist" aria-label={t('emojis')} className="-m-1 flex gap-1 overflow-x-auto p-1">
           {catalog.groups.map((g) => (
             <button
               key={g.id}
@@ -165,7 +165,7 @@ function EmojiCatalog({ selected, onPick }: { selected: string | null; onPick: (
           ))}
         </div>
       )}
-      <div className="grid max-h-60 grid-cols-8 gap-0.5 overflow-y-auto overscroll-contain">
+      <div className="-m-1 grid max-h-61 grid-cols-8 gap-0.5 overflow-y-auto overscroll-contain p-1">
         {!catalog && <p className="col-span-8 py-6 text-center text-sm text-muted">{t('loading')}</p>}
         {catalog && results.length === 0 && <p className="col-span-8 py-6 text-center text-sm text-muted">{t('noEmojiFound')}</p>}
         {results.map(([e, , fr, , en]) => (

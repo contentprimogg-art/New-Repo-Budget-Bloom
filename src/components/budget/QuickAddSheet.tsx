@@ -142,7 +142,7 @@ export default function QuickAddSheet({
             </div>
           )}
 
-          <div role="radiogroup" aria-label={t('chooseEnvelope')} className="grid max-h-56 grid-cols-4 gap-1 overflow-y-auto">
+          <div role="radiogroup" aria-label={t('chooseEnvelope')} className="-m-1 grid max-h-58 grid-cols-4 gap-1 overflow-y-auto p-1">
             {envelopes.map((env) => {
               const selected = env.id === envelopeId
               return (
