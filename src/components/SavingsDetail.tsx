@@ -1,22 +1,23 @@
+import { ChevronLeft, Pencil, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtDate, fmtMoney, parseAmount, todayIso } from '../lib/format'
-import {
-  childrenOf,
-  milestonesOf,
-  totalOf,
-  type SavingsData,
-  type SavingsEntry,
-  type SavingsEnvelope,
-} from '../lib/savings'
+import { IconBadge, colorForIndex } from '../lib/icons'
+import { useDataVersion } from '../lib/realtime'
+import { childrenOf, milestonesOf, totalOf, type SavingsData, type SavingsEntry, type SavingsEnvelope } from '../lib/savings'
 import { supabase } from '../lib/supabase'
+import { uuid } from '../lib/uuid'
+import AvatarLink from './AvatarLink'
 import ConfirmButton from './ConfirmButton'
 import MilestoneBar from './MilestoneBar'
 import ScriptTitle from './ScriptTitle'
 import Select from './Select'
+import SavingsSheet from './savings/SavingsSheet'
+import { BottomNav } from './TabBar'
+import Field, { SECONDARY } from './ui/Field'
+import PageHeader, { IconButton } from './ui/PageHeader'
+import SummaryColumns from './ui/SummaryColumns'
 
-const INPUT = 'w-full rounded-xl border border-border bg-surface px-3 py-2'
-const BUTTON = 'rounded-full bg-accent-strong px-4 py-2 font-medium text-white'
 const round = (n: number) => Math.round(n * 100) / 100
 
 export default function SavingsDetail({
@@ -31,7 +32,9 @@ export default function SavingsDetail({
   reload: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const money = (n: number) => fmtMoney(n, i18n.language)
+  const lng = i18n.language
+  const money = (n: number) => fmtMoney(n, lng)
+  const version = useDataVersion()
   const parent = envelope.parent_id ? data.envelopes.find((e) => e.id === envelope.parent_id) : undefined
   const children = childrenOf(data, envelope.id)
   const total = totalOf(data, envelope.id)
@@ -40,6 +43,7 @@ export default function SavingsDetail({
   const goal = envelope.target ?? (milestones.length ? Math.max(...milestones) : null)
   const [entries, setEntries] = useState<SavingsEntry[]>([])
   const [entriesError, setEntriesError] = useState<string | null>(null)
+  const [sheet, setSheet] = useState<'edit' | 'child' | null>(null)
 
   const loadEntries = useCallback(async () => {
     const { data: rows, error } = await supabase
@@ -56,7 +60,7 @@ export default function SavingsDetail({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadEntries()
-  }, [loadEntries])
+  }, [loadEntries, version])
 
   const refresh = () => {
     void loadEntries()
@@ -66,83 +70,74 @@ export default function SavingsDetail({
   const backHref = parent ? `#/savings/${parent.id}` : '#/savings'
 
   return (
-    <main className="fade-up mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-6 md:max-w-3xl md:px-6 lg:max-w-6xl">
-      <header className="no-print flex items-center justify-between gap-3">
-        <a href={backHref} className="text-sm text-muted underline">
-          ← {parent ? parent.name : t('back')}
-        </a>
-        <ConfirmButton
-          label={t('deleteSavings')}
-          confirmLabel={children.length ? `${t('deleteSavingsHint')} ${t('confirmDelete')}` : t('confirmDelete')}
-          onConfirm={async () => {
-            await supabase.from('savings_envelopes').delete().eq('id', envelope.id)
-            reload()
-            window.location.hash = backHref
-          }}
-          className="text-sm text-muted underline"
-          confirmClassName="text-sm font-semibold text-over underline"
-        />
-      </header>
+    <main className="fade-up mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-5 px-5 pb-36 pt-[max(1.25rem,env(safe-area-inset-top))] md:pb-16 lg:max-w-5xl">
+      <PageHeader
+        left={
+          <IconButton label={parent ? parent.name : t('back')} href={backHref}>
+            <ChevronLeft size={20} />
+          </IconButton>
+        }
+        center={<span className="truncate">{parent ? parent.name : t('tabSavings')}</span>}
+        right={<AvatarLink />}
+      />
 
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[24rem_1fr] lg:items-start lg:gap-6 xl:grid-cols-[28rem_1fr]">
-        <div className="flex flex-col gap-4 lg:sticky lg:top-6">
-          <Title envelope={envelope} onSaved={reload} />
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-14">
+        <div className="flex flex-col gap-5 lg:sticky lg:top-6">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <IconBadge icon={envelope.icon ?? 'piggy'} color={envelope.color} size="lg" />
+            <h1 className="text-2xl font-medium">{envelope.name}</h1>
+            <button onClick={() => setSheet('edit')} className="no-print flex items-center gap-1.5 text-xs text-accent-strong underline">
+              <Pencil size={12} /> {t('renameEdit')}
+            </button>
+          </div>
 
-          <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-            <div>
-              <p className="text-sm text-muted">{children.length ? t('totalWithSub') : t('savedSoFar')}</p>
-              <p className="text-3xl font-semibold tabular-nums">{money(total)}</p>
-            </div>
-            <MilestoneBar balance={total} target={envelope.target} milestones={milestones} format={money} />
-            {goal && total < goal && (
-              <p className="text-sm text-muted">{t('leftToSave', { amount: money(goal - total) })}</p>
-            )}
-            {children.length > 0 && (
-              <p className={`text-sm ${own < 0 ? 'font-medium text-over' : 'text-muted'}`}>
-                {t('unallocated')}: {money(own)}
-                {own < 0 && ` · ${t('overAllocated')}`}
-              </p>
-            )}
-          </section>
+          <SummaryColumns
+            items={[
+              { label: children.length ? t('totalShort') : t('savedSoFar'), value: money(total), tone: 'var(--accent-strong)' },
+              { label: t('goalShort'), value: goal ? money(goal) : '—', tone: 'var(--chart-2)' },
+              { label: t('leftShort'), value: goal ? money(Math.max(goal - total, 0)) : '—', tone: 'var(--ok)' },
+            ]}
+          />
+          <MilestoneBar balance={total} target={envelope.target} milestones={milestones} format={money} />
+          {children.length > 0 && (
+            <p className={`text-center text-sm ${own < 0 ? 'font-medium text-over' : 'text-muted'}`}>
+              {t('unallocated')}: <span className="font-medium tabular-nums">{money(own)}</span>
+              {own < 0 && ` · ${t('overAllocated')}`}
+            </p>
+          )}
 
           <MovementForm envelope={envelope} householdId={householdId} own={own} isPool={children.length > 0} onDone={refresh} />
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-6">
           {!parent && (
-            <SubEnvelopes
-              data={data}
-              envelope={envelope}
-              householdId={householdId}
-              children={children}
-              onChanged={refresh}
-            />
+            <SubEnvelopes data={data} envelope={envelope} householdId={householdId} kids={children} onAdd={() => setSheet('child')} onChanged={refresh} />
           )}
           <Milestones envelope={envelope} householdId={householdId} data={data} onChanged={reload} />
-          <section className="flex flex-col gap-2">
+          <section className="flex flex-col gap-1">
             <ScriptTitle>{t('movements')}</ScriptTitle>
             {entriesError && <p className="text-sm text-over">{entriesError}</p>}
             {!entriesError && entries.length === 0 && <p className="text-sm text-muted">{t('noMovements')}</p>}
-            <ul className="flex flex-col gap-2">
+            <ul className="divide-y divide-dashed divide-muted/30">
               {entries.map((e) => (
-                <li key={e.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
+                <li key={e.id} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate">{e.note || t('unnamed')}</p>
+                    <p className="truncate text-[15px]">{e.note || t('unnamed')}</p>
                     <p className="text-xs text-muted">
-                      {fmtDate(e.entry_date, i18n.language)}
+                      {fmtDate(e.entry_date, lng)}
                       {e.transfer_id && ` · ${t('tagTransfer')}`}
                       {e.source_expense_id && ` · ${t('tagRefund')}`}
                     </p>
                   </div>
-                  <span className={`font-semibold tabular-nums ${e.amount < 0 ? 'text-over' : 'text-accent-strong'}`}>
+                  <span className={`text-[15px] font-medium tabular-nums ${e.amount < 0 ? 'text-over' : 'text-ok-ink'}`}>
                     {e.amount > 0 ? '+' : ''}
                     {money(e.amount)}
                   </span>
                   <ConfirmButton
-                    label="✕"
+                    label={<X size={16} />}
                     ariaLabel={t('delete')}
                     confirmLabel={t('confirmDelete')}
-                    className="no-print px-1 text-muted opacity-60 hover:text-over hover:opacity-100"
+                    className="no-print rounded-full p-1 text-muted opacity-60 hover:text-over hover:opacity-100"
                     confirmClassName="no-print text-xs font-semibold text-over underline"
                     onConfirm={async () => {
                       // Un virement interne est composé de deux écritures: on retire les deux.
@@ -157,74 +152,34 @@ export default function SavingsDetail({
           </section>
         </div>
       </div>
-    </main>
-  )
-}
 
-function Title({ envelope, onSaved }: { envelope: SavingsEnvelope; onSaved: () => void }) {
-  const { t, i18n } = useTranslation()
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(envelope.name)
-  const [target, setTarget] = useState(envelope.target == null ? '' : String(envelope.target))
-  const [error, setError] = useState<string | null>(null)
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
-    const goal = target.trim() === '' ? null : parseAmount(target)
-    if (!name.trim()) return setError(t('errNameRequired'))
-    if (goal !== null && !(goal > 0)) return setError(t('errAmount'))
-    const { error } = await supabase
-      .from('savings_envelopes')
-      .update({ name: name.trim(), target: goal })
-      .eq('id', envelope.id)
-    if (error) return setError(`${t('errSave')} (${error.message})`)
-    setError(null)
-    setEditing(false)
-    onSaved()
-  }
-
-  if (!editing) {
-    return (
-      <div className="flex items-baseline justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">{envelope.name}</h1>
-          {envelope.target && (
-            <p className="text-sm text-muted">{t('goalOf', { amount: fmtMoney(envelope.target, i18n.language) })}</p>
-          )}
-        </div>
-        <button
-          onClick={() => {
-            setName(envelope.name)
-            setTarget(envelope.target == null ? '' : String(envelope.target))
-            setEditing(true)
+      <BottomNav />
+      {sheet === 'edit' && (
+        <SavingsSheet
+          householdId={householdId}
+          envelope={envelope}
+          defaultColor={envelope.color ?? colorForIndex(0)}
+          sort={envelope.sort}
+          hasChildren={children.length > 0}
+          onClose={() => setSheet(null)}
+          onSaved={reload}
+          onDeleted={() => {
+            reload()
+            window.location.hash = backHref
           }}
-          className="no-print text-sm text-accent-strong underline"
-        >
-          {t('renameEdit')}
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <form onSubmit={save} noValidate className="flex flex-col gap-2">
-      <input aria-label={t('savingsName')} value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
-      <input
-        inputMode="decimal"
-        placeholder={t('savingsTargetOptional')}
-        aria-label={t('savingsTargetOptional')}
-        value={target}
-        onChange={(e) => setTarget(e.target.value)}
-        className={INPUT}
-      />
-      {error && <p className="px-1 text-sm text-over">{error}</p>}
-      <div className="flex gap-2">
-        <button className={`flex-1 ${BUTTON}`}>{t('save')}</button>
-        <button type="button" onClick={() => setEditing(false)} className="rounded-xl bg-accent-soft px-4 py-2 text-accent-strong">
-          {t('cancel')}
-        </button>
-      </div>
-    </form>
+        />
+      )}
+      {sheet === 'child' && (
+        <SavingsSheet
+          householdId={householdId}
+          parentId={envelope.id}
+          defaultColor={colorForIndex(children.length + 2)}
+          sort={children.length}
+          onClose={() => setSheet(null)}
+          onSaved={reload}
+        />
+      )}
+    </main>
   )
 }
 
@@ -274,35 +229,32 @@ function MovementForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="no-print flex flex-col gap-2 rounded-2xl border border-dashed border-accent p-4">
-      <h2 className="text-sm font-medium">{isPool ? t('newMoneyUnallocated') : t('newMovement')}</h2>
-      <div className="flex gap-2">
-        <div className="w-40 shrink-0">
-          <Select
-            variant="field"
-            label={t('movementKind')}
-            value={kind}
-            options={[
-              { value: 'deposit', label: t('deposit') },
-              { value: 'withdraw', label: t('withdrawal') },
-            ]}
-            onChange={setKind}
-          />
-        </div>
-        <input
-          inputMode="decimal"
-          placeholder="0,00"
-          aria-label={t('amount')}
-          aria-invalid={!!error}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className={INPUT}
-        />
+    <form onSubmit={submit} noValidate className="no-print flex flex-col gap-3 rounded-3xl bg-surface p-5 shadow-sm">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted">{isPool ? t('newMoneyUnallocated') : t('newMovement')}</p>
+      <div role="radiogroup" aria-label={t('movementKind')} className="flex gap-2">
+        {(['deposit', 'withdraw'] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="radio"
+            aria-checked={kind === k}
+            onClick={() => setKind(k)}
+            className={`rounded-full border px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${kind === k ? 'border-accent bg-accent-soft text-accent-strong' : 'border-border text-muted'}`}
+          >
+            {k === 'deposit' ? t('deposit') : t('withdrawal')}
+          </button>
+        ))}
       </div>
-      <input placeholder={t('movementNote')} aria-label={t('movementNote')} value={note} onChange={(e) => setNote(e.target.value)} className={INPUT} />
-      <input type="date" aria-label={t('date')} value={date} onChange={(e) => setDate(e.target.value)} className={INPUT} />
-      {error && <p className="px-1 text-sm text-over">{error}</p>}
-      <button disabled={busy} className={BUTTON}>
+      <Field label={t('amount')} error={error}>
+        <input inputMode="decimal" placeholder="0,00" aria-invalid={!!error} value={amount} onChange={(e) => setAmount(e.target.value)} className="field-line text-lg tabular-nums" />
+      </Field>
+      <Field label={t('movementNote')}>
+        <input value={note} onChange={(e) => setNote(e.target.value)} className="field-line" />
+      </Field>
+      <Field label={t('date')}>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field-line" />
+      </Field>
+      <button disabled={busy} className="rounded-full bg-accent-strong px-5 py-2.5 font-semibold text-on-accent">
         {t('record')}
       </button>
     </form>
@@ -314,77 +266,47 @@ function SubEnvelopes({
   data,
   envelope,
   householdId,
-  children,
+  kids,
+  onAdd,
   onChanged,
 }: {
   data: SavingsData
   envelope: SavingsEnvelope
   householdId: string
-  children: SavingsEnvelope[]
+  kids: SavingsEnvelope[]
+  onAdd: () => void
   onChanged: () => void
 }) {
   const { t, i18n } = useTranslation()
   const money = (n: number) => fmtMoney(n, i18n.language)
-  const [name, setName] = useState('')
-  const [target, setTarget] = useState('')
-  const [error, setError] = useState<string | null>(null)
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault()
-    const goal = target.trim() === '' ? null : parseAmount(target)
-    if (!name.trim()) return setError(t('errNameRequired'))
-    if (goal !== null && !(goal > 0)) return setError(t('errAmount'))
-    const { error } = await supabase.from('savings_envelopes').insert({
-      household_id: householdId,
-      parent_id: envelope.id,
-      name: name.trim(),
-      target: goal,
-      sort: children.length,
-    })
-    if (error) return setError(`${t('errSave')} (${error.message})`)
-    setError(null)
-    setName('')
-    setTarget('')
-    onChanged()
-  }
 
   return (
-    <section className="flex flex-col gap-3">
-      <ScriptTitle>{t('subEnvelopes')}</ScriptTitle>
-      {children.length === 0 && <p className="text-sm text-muted">{t('noSubEnvelopes')}</p>}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {children.map((c) => {
+    <section className="flex flex-col gap-2">
+      <div className="flex items-end justify-between gap-3">
+        <ScriptTitle>{t('subEnvelopes')}</ScriptTitle>
+        <button onClick={onAdd} className="no-print mb-1 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-accent-strong">
+          <Plus size={14} /> {t('add')}
+        </button>
+      </div>
+      {kids.length === 0 && <p className="text-sm text-muted">{t('noSubEnvelopes')}</p>}
+      <ul className="divide-y divide-dashed divide-muted/30">
+        {kids.map((c) => {
           const bal = data.own[c.id] ?? 0
           return (
-            <a key={c.id} href={`#/savings/${c.id}`} className="block rounded-2xl border border-border bg-surface p-4 hover:border-accent">
-              <div className="flex items-baseline justify-between gap-3">
-                <h3 className="font-medium">{c.name}</h3>
-                <span className="font-semibold tabular-nums text-accent-strong">{money(bal)}</span>
-              </div>
-              <div className="mt-3">
+            <li key={c.id}>
+              <a href={`#/savings/${c.id}`} className="flex flex-col gap-2.5 py-3.5">
+                <div className="flex items-center gap-3">
+                  <IconBadge icon={c.icon ?? 'piggy'} color={c.color} size="sm" />
+                  <span className="min-w-0 flex-1 truncate text-[15px]">{c.name}</span>
+                  <span className="text-[15px] font-medium tabular-nums">{money(bal)}</span>
+                </div>
                 <MilestoneBar balance={bal} target={c.target} milestones={milestonesOf(data, c.id)} format={money} />
-              </div>
-            </a>
+              </a>
+            </li>
           )
         })}
-      </div>
-
-      {children.length > 0 && <TransferForm data={data} envelope={envelope} householdId={householdId} children={children} onDone={onChanged} />}
-
-      <form onSubmit={add} noValidate className="no-print flex flex-col gap-2 rounded-2xl border border-dashed border-accent p-4">
-        <h3 className="text-sm font-medium">{t('addSubEnvelope')}</h3>
-        <input placeholder={t('savingsName')} aria-label={t('savingsName')} value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
-        <input
-          inputMode="decimal"
-          placeholder={t('savingsTargetOptional')}
-          aria-label={t('savingsTargetOptional')}
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
-          className={INPUT}
-        />
-        {error && <p className="px-1 text-sm text-over">{error}</p>}
-        <button className={BUTTON}>{t('addSubEnvelope')}</button>
-      </form>
+      </ul>
+      {kids.length > 0 && <TransferForm data={data} envelope={envelope} householdId={householdId} kids={kids} onDone={onChanged} />}
     </section>
   )
 }
@@ -393,24 +315,21 @@ function TransferForm({
   data,
   envelope,
   householdId,
-  children,
+  kids,
   onDone,
 }: {
   data: SavingsData
   envelope: SavingsEnvelope
   householdId: string
-  children: SavingsEnvelope[]
+  kids: SavingsEnvelope[]
   onDone: () => void
 }) {
   const { t, i18n } = useTranslation()
   const money = (n: number) => fmtMoney(n, i18n.language)
-  const places = [
-    { id: envelope.id, label: t('unallocated') },
-    ...children.map((c) => ({ id: c.id, label: c.name })),
-  ]
+  const places = [{ id: envelope.id, label: t('unallocated') }, ...kids.map((c) => ({ id: c.id, label: c.name }))]
   const options = places.map((p) => ({ value: p.id, label: `${p.label} (${money(data.own[p.id] ?? 0)})` }))
   const [from, setFrom] = useState(envelope.id)
-  const [to, setTo] = useState(children[0].id)
+  const [to, setTo] = useState(kids[0].id)
   const [amount, setAmount] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -421,9 +340,12 @@ function TransferForm({
     if (from === to) return setError(t('errSamePlace'))
     if (value > (data.own[from] ?? 0)) return setError(t('errInsufficient'))
     const label = (id: string) => places.find((p) => p.id === id)?.label ?? ''
-    const transfer = crypto.randomUUID()
-    const note = t('transferNote', { from: label(from), to: label(to) })
-    const base = { household_id: householdId, note, entry_date: todayIso(), transfer_id: transfer }
+    const base = {
+      household_id: householdId,
+      note: t('transferNote', { from: label(from), to: label(to) }),
+      entry_date: todayIso(),
+      transfer_id: uuid(),
+    }
     // Une seule requête: les deux écritures passent ensemble ou pas du tout.
     const { error } = await supabase.from('savings_entries').insert([
       { ...base, savings_id: from, amount: -value },
@@ -436,25 +358,20 @@ function TransferForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="no-print flex flex-col gap-2 rounded-2xl bg-accent-soft/50 p-4">
-      <h3 className="text-sm font-medium">{t('transferTitle')}</h3>
+    <form onSubmit={submit} noValidate className="no-print mt-2 flex flex-col gap-3 rounded-3xl bg-surface p-5 shadow-sm">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted">{t('transferTitle')}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         <Select variant="field" label={t('transferFrom')} value={from} options={options} onChange={setFrom} />
         <Select variant="field" label={t('transferTo')} value={to} options={options} onChange={setTo} />
       </div>
-      <div className="flex gap-2">
-        <input
-          inputMode="decimal"
-          placeholder="0,00"
-          aria-label={t('amount')}
-          aria-invalid={!!error}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className={INPUT}
-        />
-        <button className={`shrink-0 ${BUTTON}`}>{t('transfer')}</button>
+      <div className="flex items-end gap-3">
+        <div className="flex-1">
+          <Field label={t('amount')} error={error}>
+            <input inputMode="decimal" placeholder="0,00" aria-invalid={!!error} value={amount} onChange={(e) => setAmount(e.target.value)} className="field-line tabular-nums" />
+          </Field>
+        </div>
+        <button className={SECONDARY}>{t('transfer')}</button>
       </div>
-      {error && <p className="px-1 text-sm text-over">{error}</p>}
     </form>
   )
 }
@@ -479,9 +396,7 @@ function Milestones({
     e.preventDefault()
     const value = round(parseAmount(amount))
     if (!(value > 0)) return setError(t('errAmount'))
-    const { error } = await supabase
-      .from('savings_milestones')
-      .insert({ household_id: householdId, savings_id: envelope.id, amount: value })
+    const { error } = await supabase.from('savings_milestones').insert({ household_id: householdId, savings_id: envelope.id, amount: value })
     if (error) return setError(error.code === '23505' ? t('errMilestoneExists') : `${t('errSave')} (${error.message})`)
     setError(null)
     setAmount('')
@@ -494,7 +409,7 @@ function Milestones({
       <p className="text-sm text-muted">{t('milestonesHint')}</p>
       <ul className="flex flex-wrap gap-2">
         {mine.map((m) => (
-          <li key={m.id} className="flex items-center gap-1.5 rounded-full bg-accent-soft py-1 pl-3 pr-2 text-sm">
+          <li key={m.id} className="flex items-center gap-1 rounded-full border border-accent/60 py-1 pl-3 pr-1.5 text-sm">
             <span className="font-medium tabular-nums text-accent-strong">{fmtMoney(m.amount, i18n.language)}</span>
             <button
               aria-label={t('delete')}
@@ -502,26 +417,21 @@ function Milestones({
                 await supabase.from('savings_milestones').delete().eq('id', m.id)
                 onChanged()
               }}
-              className="no-print rounded-full px-1 text-muted hover:text-over"
+              className="no-print rounded-full p-0.5 text-muted hover:text-over"
             >
-              ✕
+              <X size={14} />
             </button>
           </li>
         ))}
       </ul>
-      <form onSubmit={add} noValidate className="no-print flex gap-2">
-        <input
-          inputMode="decimal"
-          placeholder={t('milestonePlaceholder')}
-          aria-label={t('milestonePlaceholder')}
-          aria-invalid={!!error}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className={INPUT}
-        />
-        <button className="shrink-0 rounded-xl bg-accent-soft px-4 py-2 font-medium text-accent-strong">{t('add')}</button>
+      <form onSubmit={add} noValidate className="no-print flex items-end gap-3">
+        <div className="flex-1">
+          <Field label={t('milestonePlaceholder')} error={error}>
+            <input inputMode="decimal" placeholder="0,00" aria-invalid={!!error} value={amount} onChange={(e) => setAmount(e.target.value)} className="field-line tabular-nums" />
+          </Field>
+        </div>
+        <button className={SECONDARY}>{t('add')}</button>
       </form>
-      {error && <p className="px-1 text-sm text-over">{error}</p>}
     </section>
   )
 }

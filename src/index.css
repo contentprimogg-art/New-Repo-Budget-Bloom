@@ -1,19 +1,22 @@
 @import 'tailwindcss';
 
-/* Palette par défaut (rose pastel). Changer de palette = redéfinir ces variables. */
+/* Palette: seule --accent-strong est choisie (voir lib/theme.ts); les nuances en dérivent. */
 :root {
   --bg: #fafafc;
   --text: #1a1d20;
   --muted: #6b7078;
   --surface: #ffffff;
   --border: #ececf1;
-  --accent: #e88ab4;
   --accent-strong: #e46a9e;
-  --accent-soft: #fbe6ef;
+  --accent: color-mix(in oklab, var(--accent-strong) 72%, white);
+  --accent-soft: color-mix(in oklab, var(--accent-strong) 14%, white);
+  --on-accent: #ffffff;
   /* Fond papier chaud, avec un grain léger par-dessus (voir body::before). */
   --paper: #f8f4ed;
   --grain-opacity: 0.55;
-  --ok: #7fb88f;
+  --ok: #4fae78;
+  /* Vert lisible pour du texte (le vert des rayures est trop clair pour être lu) */
+  --ok-ink: color-mix(in oklab, var(--ok) 68%, black);
   --over: #d64550;
   /* Couleurs de graphiques (paire validée: contraste normal et daltonisme) */
   --chart-1: var(--accent-strong);
@@ -22,7 +25,9 @@
 
 @theme inline {
   --font-script: 'Mrs Saint Delafield', 'Segoe Script', 'Snell Roundhand', cursive;
+  --font-sans: 'Montserrat Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --color-bg: var(--bg);
+  --color-paper: var(--paper);
   --color-text: var(--text);
   --color-muted: var(--muted);
   --color-surface: var(--surface);
@@ -30,7 +35,9 @@
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
   --color-ok: var(--ok);
+  --color-ok-ink: var(--ok-ink);
   --color-over: var(--over);
 }
 
@@ -43,7 +50,7 @@ body,
 body {
   background-color: var(--paper);
   color: var(--text);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -116,18 +123,39 @@ button[role='combobox']:not(:disabled):active {
   transform: none;
 }
 
-@keyframes bloom {
-  from {
-    opacity: 0;
-    transform: scale(0.2);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* Champ « au trait » du style calligraphique: seulement une ligne en pointillés dessous. */
+.field-line {
+  border: 0;
+  border-bottom: 1.5px dashed color-mix(in oklab, var(--muted) 45%, transparent);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.5rem 0.125rem;
 }
-.bloom {
-  animation: bloom 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+.field-line:hover {
+  border-bottom-color: var(--accent);
+}
+.field-line:focus {
+  border-bottom-style: solid;
+  border-bottom-color: var(--accent-strong);
+  box-shadow: none;
+}
+
+/* Bouton rond « + » aquarelle: le fond est déformé par le filtre #watercolor (index.html),
+   l'icône reste nette au-dessus. */
+.fab {
+  border-radius: 9999px;
+  box-shadow: 0 10px 24px -8px color-mix(in oklab, var(--accent-strong) 70%, transparent);
+}
+.fab::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 30% 26%, color-mix(in oklab, var(--accent-strong) 40%, white) 0%, transparent 46%),
+    radial-gradient(circle at 70% 78%, color-mix(in oklab, var(--accent-strong) 82%, black) 0%, transparent 55%),
+    var(--accent-strong);
+  filter: url(#watercolor);
 }
 
 @keyframes fade-up {
@@ -143,9 +171,57 @@ button[role='combobox']:not(:disabled):active {
 .fade-up {
   animation: fade-up 0.25s ease-out both;
 }
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.sheet-in {
+  animation: sheet-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Dégradé d'accueil (écran de connexion sans photo): taches de couleur qui dérivent lentement. */
+@keyframes drift {
+  0%,
+  100% {
+    background-position:
+      0% 0%,
+      100% 0%,
+      50% 100%,
+      0 0;
+  }
+  50% {
+    background-position:
+      30% 20%,
+      70% 30%,
+      40% 70%,
+      0 0;
+  }
+}
+.hero-gradient {
+  background:
+    radial-gradient(60% 70% at 20% 20%, color-mix(in oklab, var(--accent-strong) 70%, white) 0%, transparent 70%),
+    radial-gradient(55% 60% at 85% 25%, #f6c9a8 0%, transparent 70%),
+    radial-gradient(70% 60% at 50% 95%, #d9c7f2 0%, transparent 70%),
+    linear-gradient(160deg, #fdf3ea, #f9e1ec);
+  background-size:
+    160% 160%,
+    160% 160%,
+    160% 160%,
+    100% 100%;
+  animation: drift 18s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fade-up,
-  .bloom {
+  .sheet-in,
+  .hero-gradient {
     animation: none;
   }
   button {

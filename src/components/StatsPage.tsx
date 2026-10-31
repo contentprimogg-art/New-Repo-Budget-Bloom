@@ -1,3 +1,4 @@
+import { ChartPie, Download, Printer, Share2, Wallet } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { downloadFile, openMailDraft, shareFile } from '../lib/files'
@@ -14,15 +15,24 @@ import {
   type Balance,
   type StatEnvelope,
 } from '../lib/stats'
+import { IconBadge, badgeColor, colorForIndex } from '../lib/icons'
+import { useDataVersion } from '../lib/realtime'
 import type { Tip } from '../lib/tips'
 import GroupedBars from './GroupedBars'
 import AvatarLink from './AvatarLink'
 import Select from './Select'
-import TabBar from './TabBar'
+import ScriptTitle from './ScriptTitle'
+import TabBar, { BottomNav } from './TabBar'
+import HatchedDonut from './ui/HatchedDonut'
+import PageHeader from './ui/PageHeader'
 import Tips from './Tips'
 
 const RANGES = [3, 6, 12] as const
-const card = 'rounded-2xl border border-border bg-surface p-4 shadow-sm'
+const card = 'rounded-3xl bg-surface p-5 shadow-sm'
+const chip = (on: boolean) =>
+  `flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+    on ? 'border-accent bg-surface text-accent-strong' : 'border-transparent text-muted'
+  }`
 const th = 'px-3 py-2 font-medium'
 const td = 'px-3 py-2 tabular-nums'
 
@@ -37,6 +47,8 @@ export default function StatsPage({ householdId }: { householdId: string }) {
   const [focus, setFocus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [mode, setMode] = useState<'spent' | 'budget'>('spent')
+  const version = useDataVersion()
 
   const months = useMemo(() => (allMonths ?? []).slice(-range), [allMonths, range])
   const monthsKey = months.join(',')
@@ -46,7 +58,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
       if (r.error) setError(r.error)
       setAllMonths(r.months)
     })
-  }, [householdId])
+  }, [householdId, version])
 
   useEffect(() => {
     if (!monthsKey) return
@@ -57,12 +69,28 @@ export default function StatsPage({ householdId }: { householdId: string }) {
       setEnvs(r.envelopes)
       setBalances(r.balances)
     })
-  }, [householdId, monthsKey])
+  }, [householdId, monthsKey, version])
 
   const totals = useMemo(() => monthTotals(months, envs), [months, envs])
   const matrix = useMemo(() => envelopeMatrix(months, envs), [months, envs])
   const focusMonth = focus && months.includes(focus) ? focus : months[months.length - 1]
   const weekly = useMemo(() => (focusMonth ? weeklyMatrix(focusMonth, envs) : null), [focusMonth, envs])
+  const breakdown = useMemo(
+    () =>
+      envs
+        .filter((e) => e.month === focusMonth)
+        .map((e, i) => ({
+          key: e.id,
+          label: e.name,
+          value: mode === 'spent' ? spentOf(e) : e.budget,
+          color: badgeColor(e.color ?? colorForIndex(i)),
+          icon: e.icon,
+          rawColor: e.color ?? colorForIndex(i),
+        }))
+        .sort((a, b) => b.value - a.value),
+    [envs, focusMonth, mode],
+  )
+  const breakdownTotal = breakdown.reduce((s, b) => s + b.value, 0)
 
   // ---- Conseils d'après l'historique ----
   const insights = useMemo(() => {
@@ -143,11 +171,11 @@ export default function StatsPage({ householdId }: { householdId: string }) {
   const rangeLabel = months.length ? `${fmtMonth(months[0], lng)} → ${fmtMonth(months[months.length - 1], lng)}` : ''
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-4 py-6 md:max-w-3xl md:px-6 xl:max-w-6xl">
-      <header className="flex items-center justify-between gap-3">
+    <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-6 px-5 pb-36 pt-[max(1.25rem,env(safe-area-inset-top))] md:max-w-3xl md:pb-16 xl:max-w-5xl">
+      <PageHeader center={t('tabStats')} right={<AvatarLink />} />
+      <div className="no-print -mt-3 flex justify-center">
         <TabBar />
-        <AvatarLink />
-      </header>
+      </div>
 
       <div className="hidden print:block">
         <h1 className="text-2xl font-semibold">Budget Bloom — {t('tabStats')}</h1>
@@ -164,31 +192,26 @@ export default function StatsPage({ householdId }: { householdId: string }) {
 
       {!empty && (
         <>
-          <div className="no-print flex flex-wrap items-center justify-between gap-3">
-            <div role="group" aria-label={t('period')} className="flex rounded-full bg-accent-soft p-0.5 text-xs">
+          <div className="no-print flex flex-col items-center gap-3">
+            <div role="group" aria-label={t('period')} className="flex gap-1">
               {RANGES.map((r) => (
-                <button
-                  key={r}
-                  aria-pressed={range === r}
-                  onClick={() => setRange(r)}
-                  className={`rounded-full px-3 py-1.5 ${range === r ? 'bg-surface font-medium text-accent-strong shadow-sm' : 'text-muted'}`}
-                >
+                <button key={r} aria-pressed={range === r} onClick={() => setRange(r)} className={chip(range === r)}>
                   {t('lastMonths', { count: r })}
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-2 text-sm">
-              <button onClick={() => window.print()} className="rounded-xl bg-accent-soft px-3 py-1.5 text-accent-strong">
-                {t('print')}
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-semibold uppercase tracking-[0.12em] text-accent-strong">
+              <button onClick={() => window.print()} className="flex items-center gap-1.5">
+                <Printer size={14} /> {t('print')}
               </button>
-              <button onClick={exportCsv} className="rounded-xl bg-accent-soft px-3 py-1.5 text-accent-strong">
-                {t('exportCsv')}
+              <button onClick={exportCsv} className="flex items-center gap-1.5">
+                <Download size={14} /> {t('exportCsv')}
               </button>
-              <button onClick={() => void share()} className="rounded-xl bg-accent-soft px-3 py-1.5 text-accent-strong">
-                {t('shareByEmail')}
+              <button onClick={() => void share()} className="flex items-center gap-1.5">
+                <Share2 size={14} /> {t('shareByEmail')}
               </button>
-              <button onClick={() => void exportBackup()} className="rounded-xl border border-border px-3 py-1.5 text-muted">
-                {t('fullBackup')}
+              <button onClick={() => void exportBackup()} className="flex items-center gap-1.5 text-muted">
+                <Download size={14} /> {t('fullBackup')}
               </button>
             </div>
           </div>
@@ -201,9 +224,58 @@ export default function StatsPage({ householdId }: { householdId: string }) {
             </p>
           )}
 
+          {/* Répartition du mois choisi, façon moodboard: anneau hachuré, bulles d'icônes */}
+          {focusMonth && (
+            <section className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <ScriptTitle>{t('breakdown')}</ScriptTitle>
+                <div className="no-print mb-1 w-48">
+                  <Select
+                    variant="field"
+                    label={t('csvMonth')}
+                    value={focusMonth}
+                    options={[...months].reverse().map((m) => ({ value: m, label: fmtMonth(m, lng) }))}
+                    onChange={setFocus}
+                  />
+                </div>
+              </div>
+              <div role="radiogroup" aria-label={t('breakdown')} className="no-print flex justify-center gap-2">
+                <button role="radio" aria-checked={mode === 'spent'} onClick={() => setMode('spent')} className={chip(mode === 'spent')}>
+                  <ChartPie size={14} /> {t('spent')}
+                </button>
+                <button role="radio" aria-checked={mode === 'budget'} onClick={() => setMode('budget')} className={chip(mode === 'budget')}>
+                  <Wallet size={14} /> {t('budgeted')}
+                </button>
+              </div>
+              <HatchedDonut
+                size={300}
+                gapColor="var(--paper)"
+                ariaLabel={`${t('breakdown')} ${fmtMonth(focusMonth, lng)}`}
+                format={money}
+                slices={breakdown}
+                center={
+                  <>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">{mode === 'spent' ? t('spent') : t('budgeted')}</span>
+                    <span className="text-xl font-medium tabular-nums">{money(breakdownTotal)}</span>
+                  </>
+                }
+              />
+              <ul className="divide-y divide-dashed divide-muted/30">
+                {breakdown.map((b) => (
+                  <li key={b.key} className="flex items-center gap-3 py-3">
+                    <IconBadge icon={b.icon} color={b.rawColor} size="sm" />
+                    <span className="min-w-0 flex-1 truncate text-[15px]">{b.label}</span>
+                    <span className="text-xs tabular-nums text-muted">{breakdownTotal ? Math.round((b.value / breakdownTotal) * 100) : 0}%</span>
+                    <span className="w-24 text-right text-[15px] font-medium tabular-nums">{money(b.value)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {/* Comparaison mois par mois */}
           <section className={`${card} flex flex-col gap-4`}>
-            <h2 className="font-medium">{t('compareMonths')}</h2>
+            <ScriptTitle>{t('compareMonths')}</ScriptTitle>
             <GroupedBars
               ariaLabel={t('compareMonths')}
               categories={months.map((m) => fmtMonth(m, lng, 'short'))}
@@ -253,7 +325,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
 
           {/* Par enveloppe */}
           <section className={`${card} flex flex-col gap-3`}>
-            <h2 className="font-medium">{t('byEnvelope')}</h2>
+            <ScriptTitle>{t('byEnvelope')}</ScriptTitle>
             <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full min-w-136 border-collapse text-sm">
                 <thead>
@@ -299,7 +371,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
           {weekly && focusMonth && (
             <section className={`${card} flex flex-col gap-4`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-medium">{t('weeklyRecap')}</h2>
+                <ScriptTitle>{t('weeklyRecap')}</ScriptTitle>
                 <div className="no-print w-48">
                   <Select
                     variant="field"
@@ -367,6 +439,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
           )}
         </>
       )}
+      <BottomNav />
     </main>
   )
 }

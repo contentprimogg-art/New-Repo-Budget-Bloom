@@ -24,6 +24,11 @@ Les migrations sont dans `supabase/migrations/`. À exécuter **dans l'ordre, un
 3. `0003_recurring_envelopes.sql`: enveloppes récurrentes
 4. `0004_savings.sql`: épargne (enveloppes, sous-enveloppes, paliers, mouvements)
 5. `0005_avatars.sql`: stockage privé des photos de profil
+6. `0006_groups_realtime.sql`: groupes d'enveloppes, icônes de l'épargne, mise à jour en direct entre appareils
+
+## Aperçu des composants (développement)
+
+`npm run dev` puis ouvrir `http://localhost:5173/#/__preview` (ou `#/__preview-quick` pour le panneau d'ajout rapide): les composants du style calligraphique avec des données fictives, sans connexion. Cette page n'existe pas dans la version en ligne.
 
 Le modèle d'e-mail de confirmation est dans `supabase/email-templates/` (à coller dans Authentication → Emails → Templates; nécessite un SMTP personnalisé).
 

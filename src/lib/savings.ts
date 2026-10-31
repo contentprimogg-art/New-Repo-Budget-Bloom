@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useDataVersion } from './realtime'
 import { todayIso } from './format'
 import { supabase } from './supabase'
 import type { ExpenseStatus } from './types'
@@ -10,6 +11,8 @@ export interface SavingsEnvelope {
   name: string
   target: number | null
   sort: number
+  icon?: string | null
+  color?: string | null
 }
 
 export interface Milestone {
@@ -72,10 +75,11 @@ export function useSavings(householdId: string) {
     setLoaded(true)
   }, [householdId])
 
+  const version = useDataVersion()
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload()
-  }, [reload])
+  }, [reload, version])
 
   return { data, error, loaded, reload }
 }

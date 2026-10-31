@@ -80,7 +80,7 @@ export default function Auth() {
     setErrors({})
   }
 
-  const input = 'w-full rounded-2xl border border-border bg-surface px-4 py-3'
+  const input = 'field-line w-full text-base'
 
   return (
     <main className="mx-auto flex min-h-dvh w-full flex-col gap-6 md:max-w-4xl md:flex-row md:items-center md:gap-14 md:px-6 md:py-6">
@@ -174,7 +174,7 @@ export default function Auth() {
             )}
             <button
               disabled={busy}
-              className="mt-1 rounded-full bg-accent-strong px-6 py-3.5 text-base font-semibold text-white shadow-md shadow-accent/30"
+              className="mt-1 rounded-full bg-accent-strong px-6 py-3.5 text-base font-semibold text-on-accent shadow-md shadow-accent/30"
             >
               {busy ? t('loading') : mode === 'in' ? t('signIn') : t('signUp')}
             </button>

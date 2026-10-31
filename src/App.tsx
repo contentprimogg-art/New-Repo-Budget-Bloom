@@ -8,6 +8,7 @@ import ProfilePage from './components/ProfilePage'
 import SavingsPage from './components/SavingsPage'
 import StatsPage from './components/StatsPage'
 import { ProfileProvider } from './lib/profile'
+import { DataProvider } from './lib/realtime'
 import { pageOf, useHash } from './lib/route'
 import { isConfigured, supabase } from './lib/supabase'
 
@@ -60,7 +61,9 @@ export default function App() {
   if (!householdId) return <Onboarding onDone={setHouseholdId} />
   return (
     <ProfileProvider session={session}>
-      <Pages householdId={householdId} />
+      <DataProvider householdId={householdId}>
+        <Pages householdId={householdId} />
+      </DataProvider>
     </ProfileProvider>
   )
 }

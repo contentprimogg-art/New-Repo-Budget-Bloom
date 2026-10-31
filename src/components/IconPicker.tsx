@@ -1,35 +1,7 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { BADGE_COLORS, IconBadge, IconGlyph, ICON_KEYS, badgeColor } from '../lib/icons'
 
-export const ICONS = [
-  '🛒', '🍽️', '🏠', '🚗', '⛽', '🎬', '🎮', '👗', '💄', '💊', '🐶', '🎁',
-  '✈️', '📚', '🎓', '💡', '📱', '🧴', '☕', '🍷', '🏋️', '💐', '🧸', '🎧',
-]
-
-// Teintes pastel douces (fond de la pastille).
-export const SWATCHES = ['#FBE6EF', '#F9DDE0', '#FFF1D6', '#E8F3EA', '#E6EEF9', '#EFE6F7', '#F3E9DC']
-
-export function EnvelopeBadge({
-  icon,
-  color,
-  className = 'size-10 text-lg',
-}: {
-  icon: string | null
-  color: string | null
-  className?: string
-}) {
-  return (
-    <span
-      aria-hidden
-      className={`grid shrink-0 place-items-center rounded-full ${className}`}
-      style={{ background: color ?? 'var(--accent-soft)' }}
-    >
-      {icon ?? '🌸'}
-    </span>
-  )
-}
-
-// Choix de l'icône et de la couleur d'une enveloppe (pastille façon appli de budget).
+// Choix de l'icône (au trait, colorée comme la grille de catégories du moodboard) et de la couleur.
 export default function IconPicker({
   icon,
   color,
@@ -40,52 +12,41 @@ export default function IconPicker({
   onChange: (next: { icon: string | null; color: string | null }) => void
 }) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
+  const current = badgeColor(color ?? BADGE_COLORS[0])
 
   return (
-    <div className="flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="flex w-fit items-center gap-2 rounded-full border border-border bg-surface py-1 pl-1 pr-3 text-sm text-muted hover:border-accent"
-      >
-        <EnvelopeBadge icon={icon} color={color} className="size-8 text-base" />
-        {t('chooseIcon')}
-      </button>
-      {open && (
-        <div className="fade-up flex flex-col gap-3 rounded-2xl border border-border bg-surface p-3">
-          <div role="group" aria-label={t('chooseIcon')} className="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
-            {ICONS.map((i) => (
-              <button
-                key={i}
-                type="button"
-                aria-pressed={icon === i}
-                aria-label={i}
-                onClick={() => onChange({ icon: i, color })}
-                className={`grid aspect-square place-items-center rounded-xl text-xl ${
-                  icon === i ? 'bg-accent-soft ring-2 ring-accent-strong' : 'hover:bg-accent-soft/60'
-                }`}
-              >
-                {i}
-              </button>
-            ))}
-          </div>
-          <div role="group" aria-label={t('chooseColor')} className="flex flex-wrap gap-2">
-            {SWATCHES.map((c, n) => (
-              <button
-                key={c}
-                type="button"
-                aria-pressed={color === c}
-                aria-label={`${t('chooseColor')} ${n + 1}`}
-                onClick={() => onChange({ icon, color: c })}
-                className={`size-8 rounded-full border border-border ${color === c ? 'ring-2 ring-accent-strong ring-offset-2' : ''}`}
-                style={{ background: c }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <IconBadge icon={icon} color={color ?? BADGE_COLORS[0]} size="lg" />
+        <p className="text-sm text-muted">{t('chooseIcon')}</p>
+      </div>
+      <div role="group" aria-label={t('chooseIcon')} className="grid grid-cols-7 gap-1 sm:grid-cols-9">
+        {ICON_KEYS.map((key) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={icon === key}
+            aria-label={key}
+            onClick={() => onChange({ icon: key, color: color ?? BADGE_COLORS[0] })}
+            className={`grid aspect-square place-items-center rounded-2xl ${icon === key ? 'bg-accent-soft ring-2 ring-accent-strong' : 'hover:bg-accent-soft/60'}`}
+          >
+            <IconGlyph icon={key} color={icon === key ? current : 'var(--muted)'} size={21} />
+          </button>
+        ))}
+      </div>
+      <div role="group" aria-label={t('chooseColor')} className="flex flex-wrap gap-2.5">
+        {BADGE_COLORS.map((c, n) => (
+          <button
+            key={c}
+            type="button"
+            aria-pressed={current === c}
+            aria-label={`${t('chooseColor')} ${n + 1}`}
+            onClick={() => onChange({ icon, color: c })}
+            className={`size-8 rounded-full ${current === c ? 'ring-2 ring-text ring-offset-2 ring-offset-surface' : ''}`}
+            style={{ background: c }}
+          />
+        ))}
+      </div>
     </div>
   )
 }

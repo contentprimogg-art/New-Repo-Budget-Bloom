@@ -1,21 +1,39 @@
+import { ChevronLeft, ChevronRight, CloudOff, Plus } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { fmtMoney, parseAmount } from '../lib/format'
+import { useOutboxCount } from '../lib/expenses'
+import { fmtMoney, fmtMonth } from '../lib/format'
+import { colorForIndex } from '../lib/icons'
+import { useDataVersion } from '../lib/realtime'
 import { useHash } from '../lib/route'
-import { reallocTips } from '../lib/tips'
 import { supabase } from '../lib/supabase'
-import { useProfile } from '../lib/profile'
-import { countsAsSpent, currentMonth, envelopeStats, shiftMonth, type Envelope } from '../lib/types'
+import { reallocTips } from '../lib/tips'
+import { countsAsSpent, currentMonth, shiftMonth, type Envelope, type EnvelopeGroup } from '../lib/types'
 import AvatarLink from './AvatarLink'
+import EnvelopeSheet from './budget/EnvelopeSheet'
+import GroupSection from './budget/GroupSection'
+import GroupSheet from './budget/GroupSheet'
+import QuickAddSheet from './budget/QuickAddSheet'
+import EnvelopeRow from './budget/EnvelopeRow'
 import EnvelopeDetail from './EnvelopeDetail'
-import EnvelopeStrip from './EnvelopeStrip'
-import IconPicker from './IconPicker'
 import MonthSummary from './MonthSummary'
 import ScriptTitle from './ScriptTitle'
-import TabBar from './TabBar'
+import TabBar, { BottomNav } from './TabBar'
 import Tips from './Tips'
+import Fab from './ui/Fab'
+import { PRIMARY } from './ui/Field'
+import PageHeader, { IconButton } from './ui/PageHeader'
+import Sheet from './ui/Sheet'
 
 const PREFIX = '#/envelope/'
+const UNGROUPED = '__ungrouped__'
+
+type SheetState =
+  | { kind: 'quick' }
+  | { kind: 'envelope'; envelope?: Envelope; groupId?: string | null }
+  | { kind: 'group'; group?: EnvelopeGroup }
+  | { kind: 'deleteGroup'; group: EnvelopeGroup }
+  | null
 
 // Navigation par hash: le bouton « retour » du téléphone ferme le détail.
 function useSelectedId() {
@@ -25,16 +43,23 @@ function useSelectedId() {
 
 export default function Home({ householdId }: { householdId: string }) {
   const { t, i18n } = useTranslation()
-  const { profile } = useProfile()
+  const lng = i18n.language
+  const money = (n: number) => fmtMoney(n, lng)
+  const version = useDataVersion()
+  const pending = useOutboxCount()
   const nowMonth = currentMonth()
   const [month, setMonth] = useState(nowMonth)
   const [firstMonth, setFirstMonth] = useState<string | null>(null)
   const [rolled, setRolled] = useState(0)
   const selectedId = useSelectedId()
   const [envelopes, setEnvelopes] = useState<Envelope[]>([])
+  const [groups, setGroups] = useState<EnvelopeGroup[]>([])
+  const [groupsMissing, setGroupsMissing] = useState(false)
   const [spentBy, setSpentBy] = useState<Record<string, number>>({})
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [sheet, setSheet] = useState<SheetState>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const rolledOver = useRef(false)
   const requestId = useRef(0)
 
@@ -47,27 +72,20 @@ export default function Home({ householdId }: { householdId: string }) {
       if (error) console.warn('rollover_month:', error.message)
       else if (typeof data === 'number' && data > 0) setRolled(data)
     }
-    const first = await supabase
-      .from('envelopes')
-      .select('month')
-      .eq('household_id', householdId)
-      .order('month')
-      .limit(1)
-      .maybeSingle()
+    const [first, env, grp] = await Promise.all([
+      supabase.from('envelopes').select('month').eq('household_id', householdId).order('month').limit(1).maybeSingle(),
+      supabase.from('envelopes').select('*').eq('household_id', householdId).eq('month', month).order('sort').order('created_at'),
+      supabase.from('envelope_groups').select('*').eq('household_id', householdId).order('sort').order('created_at'),
+    ])
     if (first.data) setFirstMonth(first.data.month)
-    const env = await supabase
-      .from('envelopes')
-      .select('*')
-      .eq('household_id', householdId)
-      .eq('month', month)
-      .order('sort')
-      .order('created_at')
     if (env.error) {
       setLoadError(env.error.message)
       setLoaded(true)
       return
     }
-    const list = (env.data ?? []) as Envelope[]
+    // Les groupes sont facultatifs: sans la migration 0006, on affiche simplement les enveloppes.
+    setGroupsMissing(!!grp.error)
+    const list = (env.data ?? []).map((e) => ({ ...e, budget: Number(e.budget) })) as Envelope[]
     const sums: Record<string, number> = {}
     if (list.length) {
       const exp = await supabase
@@ -86,6 +104,7 @@ export default function Home({ householdId }: { householdId: string }) {
     if (id !== requestId.current) return // une requête plus récente (autre mois) a pris le relais
     setLoadError(null)
     setEnvelopes(list)
+    setGroups((grp.data ?? []) as EnvelopeGroup[])
     setSpentBy(sums)
     setLoaded(true)
   }, [householdId, month, nowMonth])
@@ -93,13 +112,20 @@ export default function Home({ householdId }: { householdId: string }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
-  }, [load])
+  }, [load, version])
+
+  const onAdded = (queued: boolean) => {
+    setNotice(queued ? t('savedOffline') : null)
+    void load()
+  }
 
   const selected = selectedId ? envelopes.find((e) => e.id === selectedId) : undefined
   if (selected) {
     return (
       <EnvelopeDetail
         envelope={selected}
+        envelopes={envelopes}
+        groups={groups}
         siblings={envelopes
           .filter((e) => e.id !== selected.id)
           .map((e) => ({ name: e.name, remaining: e.budget - (spentBy[e.id] ?? 0) }))}
@@ -111,174 +137,191 @@ export default function Home({ householdId }: { householdId: string }) {
     )
   }
 
+  const open = (envelopeId: string) => {
+    window.location.hash = `${PREFIX}${envelopeId}`
+  }
+  const totalBudget = envelopes.reduce((s, e) => s + e.budget, 0)
+  const totalSpent = envelopes.reduce((s, e) => s + (spentBy[e.id] ?? 0), 0)
+  const overList = envelopes.filter((e) => (spentBy[e.id] ?? 0) > e.budget)
+  const groupIds = new Set(groups.map((g) => g.id))
+  const ungrouped = envelopes.filter((e) => !e.group_id || !groupIds.has(e.group_id))
+
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-6 md:max-w-3xl md:px-6 xl:max-w-6xl">
-      {profile.firstName && <p className="font-script text-4xl leading-tight">{t('hello', { name: profile.firstName })}</p>}
-      <div className="flex items-center justify-between gap-3">
+    <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-5 px-5 pb-36 pt-[max(1.25rem,env(safe-area-inset-top))] md:pb-16 lg:max-w-5xl">
+      <PageHeader
+        left={<img src="/favicon.svg" alt="" className="size-9 rounded-xl" />}
+        center={
+          <>
+            <IconButton label={t('prevMonth')} onClick={() => setMonth(shiftMonth(month, -1))} disabled={!firstMonth || month <= firstMonth}>
+              <ChevronLeft size={18} />
+            </IconButton>
+            <h1 className="truncate px-1">{fmtMonth(month, lng)}</h1>
+            <IconButton label={t('nextMonth')} onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= nowMonth}>
+              <ChevronRight size={18} />
+            </IconButton>
+          </>
+        }
+        right={<AvatarLink />}
+      />
+      <div className="-mt-2 flex flex-col items-center gap-3">
         <TabBar />
-        <AvatarLink />
+        {month !== nowMonth && (
+          <button onClick={() => setMonth(nowMonth)} className="no-print text-xs text-accent-strong underline">
+            {t('currentMonth')}
+          </button>
+        )}
       </div>
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setMonth(shiftMonth(month, -1))}
-            disabled={!firstMonth || month <= firstMonth}
-            aria-label={t('prevMonth')}
-            className="no-print rounded-full p-2 text-lg leading-none text-accent-strong hover:bg-accent-soft"
-          >
-            ‹
-          </button>
-          <h1 className="min-w-36 text-center text-xl font-semibold capitalize">
-            {new Intl.DateTimeFormat(i18n.language, { month: 'long', year: 'numeric' }).format(
-              new Date(`${month}-01T12:00:00`),
-            )}
-          </h1>
-          <button
-            onClick={() => setMonth(shiftMonth(month, 1))}
-            disabled={month >= nowMonth}
-            aria-label={t('nextMonth')}
-            className="no-print rounded-full p-2 text-lg leading-none text-accent-strong hover:bg-accent-soft"
-          >
-            ›
-          </button>
-          {month !== nowMonth && (
-            <button onClick={() => setMonth(nowMonth)} className="no-print ml-1 text-sm text-accent-strong underline">
-              {t('currentMonth')}
-            </button>
-          )}
-        </div>
-      </header>
+
       {rolled > 0 && month === nowMonth && (
-        <p className="no-print flex items-center justify-between gap-3 rounded-xl bg-accent-soft px-4 py-3 text-sm">
+        <p className="no-print flex items-center justify-between gap-3 rounded-2xl bg-accent-soft px-4 py-3 text-sm">
           <span>{t('rolledOver', { count: rolled })}</span>
           <button onClick={() => setRolled(0)} aria-label={t('close')} className="text-muted">
             ✕
           </button>
         </p>
       )}
+      {(pending > 0 || notice) && (
+        <p role="status" className="no-print flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm shadow-sm">
+          <CloudOff size={16} className="shrink-0 text-muted" />
+          {pending > 0 ? t('pendingExpenses', { count: pending }) : notice}
+        </p>
+      )}
       {loadError && (
-        <div role="alert" className="rounded-xl bg-over/10 px-4 py-3 text-sm text-over">
+        <div role="alert" className="rounded-2xl bg-over/10 px-4 py-3 text-sm text-over">
           <p>{t('errLoad')}</p>
           <p className="mt-1 text-xs opacity-80">{loadError}</p>
         </div>
       )}
-      {loaded && !loadError && <ScriptTitle>{t('summaryTitle')}</ScriptTitle>}
-      {loaded && !loadError && (
-        <MonthSummary
-          key={month}
+
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-14">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-6">
+          <ScriptTitle>{t('summaryTitle')}</ScriptTitle>
+          {loaded && !loadError && (
+            <MonthSummary
+              key={month}
+              householdId={householdId}
+              month={month}
+              totalBudget={totalBudget}
+              totalSpent={totalSpent}
+              totalOver={overList.reduce((s, e) => s + (spentBy[e.id] ?? 0) - e.budget, 0)}
+              overCount={overList.length}
+            />
+          )}
+          {loaded && !loadError && (
+            <Tips
+              title={t('tipsOverTitle')}
+              tips={reallocTips(
+                envelopes.map((e) => ({ name: e.name, budget: e.budget, spent: spentBy[e.id] ?? 0 })),
+                money,
+              )}
+            />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex items-end justify-between gap-3">
+            <ScriptTitle>{t('envelopes')}</ScriptTitle>
+            {!groupsMissing && (
+              <button onClick={() => setSheet({ kind: 'group' })} className="no-print mb-1 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-accent-strong">
+                <Plus size={14} /> {t('group')}
+              </button>
+            )}
+          </div>
+          {groupsMissing && <p className="text-xs text-muted">{t('errMigrationGroups')}</p>}
+          {loaded && !loadError && envelopes.length === 0 && (
+            <p className="text-sm text-muted">{month === nowMonth ? t('noEnvelopes') : t('noEnvelopesPast')}</p>
+          )}
+
+          {groups.map((g) => {
+            const list = envelopes.filter((e) => e.group_id === g.id)
+            return list.length === 0 ? (
+              <EmptyGroup key={g.id} group={g} onAdd={() => setSheet({ kind: 'envelope', groupId: g.id })} onDelete={() => setSheet({ kind: 'deleteGroup', group: g })} />
+            ) : (
+              <GroupSection
+                key={g.id}
+                id={g.id}
+                title={g.name}
+                envelopes={list}
+                spentBy={spentBy}
+                onOpen={open}
+                onRename={() => setSheet({ kind: 'group', group: g })}
+                onDelete={() => setSheet({ kind: 'deleteGroup', group: g })}
+              />
+            )
+          })}
+          {ungrouped.length > 0 &&
+            (groups.length > 0 ? (
+              <GroupSection id={UNGROUPED} title={t('noGroup')} envelopes={ungrouped} spentBy={spentBy} onOpen={open} />
+            ) : (
+              <ul className="divide-y divide-dashed divide-muted/30">
+                {ungrouped.map((e) => (
+                  <EnvelopeRow key={e.id} envelope={e} spent={spentBy[e.id] ?? 0} onOpen={() => open(e.id)} />
+                ))}
+              </ul>
+            ))}
+
+          <button
+            onClick={() => setSheet({ kind: 'envelope' })}
+            className="no-print flex items-center justify-center gap-2 rounded-full border border-dashed border-accent py-3 text-sm font-medium text-accent-strong hover:bg-accent-soft/50"
+          >
+            <Plus size={16} /> {t('newEnvelope')}
+          </button>
+        </div>
+      </div>
+
+      {envelopes.length > 0 && <Fab label={t('newExpense')} onClick={() => setSheet({ kind: 'quick' })} />}
+      <BottomNav />
+
+      {sheet?.kind === 'quick' && <QuickAddSheet envelopes={envelopes} onClose={() => setSheet(null)} onAdded={onAdded} />}
+      {sheet?.kind === 'envelope' && (
+        <EnvelopeSheet
           householdId={householdId}
           month={month}
-          totalBudget={envelopes.reduce((sum, e) => sum + e.budget, 0)}
-          totalSpent={envelopes.reduce((sum, e) => sum + (spentBy[e.id] ?? 0), 0)}
-          totalOver={envelopes.reduce((sum, e) => sum + Math.max(0, (spentBy[e.id] ?? 0) - e.budget), 0)}
+          envelope={sheet.envelope}
+          groups={groups}
+          defaultGroupId={sheet.groupId}
+          defaultColor={colorForIndex(envelopes.length)}
+          sort={envelopes.length}
+          onClose={() => setSheet(null)}
+          onSaved={load}
         />
       )}
-      {loaded && !loadError && (
-        <Tips
-          title={t('tipsOverTitle')}
-          tips={reallocTips(
-            envelopes.map((e) => ({ name: e.name, budget: e.budget, spent: spentBy[e.id] ?? 0 })),
-            (n) => fmtMoney(n, i18n.language),
-          )}
-        />
+      {sheet?.kind === 'group' && (
+        <GroupSheet householdId={householdId} group={sheet.group} sort={groups.length} onClose={() => setSheet(null)} onSaved={load} />
       )}
-      {loaded && !loadError && envelopes.length === 0 && (
-        <p className="text-muted">{month === nowMonth ? t('noEnvelopes') : t('noEnvelopesPast')}</p>
+      {sheet?.kind === 'deleteGroup' && (
+        <Sheet title={t('deleteGroup')} onClose={() => setSheet(null)}>
+          <p className="text-sm">{t('deleteGroupHint', { name: sheet.group.name })}</p>
+          <button
+            className={`${PRIMARY} bg-over! text-white! shadow-over/30!`}
+            onClick={async () => {
+              await supabase.from('envelope_groups').delete().eq('id', sheet.group.id)
+              setSheet(null)
+              void load()
+            }}
+          >
+            {t('deleteGroup')}
+          </button>
+        </Sheet>
       )}
-      <ScriptTitle>{t('envelopes')}</ScriptTitle>
-      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {envelopes.map((e) => (
-          <EnvelopeStrip
-            key={e.id}
-            envelope={e}
-            stats={envelopeStats(e.budget, spentBy[e.id] ?? 0)}
-            onChange={load}
-          />
-        ))}
-        <NewEnvelope householdId={householdId} month={month} sort={envelopes.length} onAdded={load} />
-      </div>
     </main>
   )
 }
 
-function NewEnvelope({
-  householdId,
-  month,
-  sort,
-  onAdded,
-}: {
-  householdId: string
-  month: string
-  sort: number
-  onAdded: () => void
-}) {
+function EmptyGroup({ group, onAdd, onDelete }: { group: EnvelopeGroup; onAdd: () => void; onDelete: () => void }) {
   const { t } = useTranslation()
-  const [name, setName] = useState('')
-  const [budget, setBudget] = useState('')
-  const [recurring, setRecurring] = useState(true)
-  const [look, setLook] = useState<{ icon: string | null; color: string | null }>({ icon: null, color: null })
-  const [errors, setErrors] = useState<{ name?: string; budget?: string; form?: string }>({})
-  const [busy, setBusy] = useState(false)
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault()
-    if (busy) return
-    const value = parseAmount(budget)
-    const found: typeof errors = {}
-    if (!name.trim()) found.name = t('errNameRequired')
-    if (!(value >= 0) || budget.trim() === '') found.budget = t('errAmount')
-    setErrors(found)
-    if (Object.keys(found).length) return
-    setBusy(true)
-    const { error } = await supabase
-      .from('envelopes')
-      .insert({ household_id: householdId, month, name: name.trim(), budget: value, sort, recurring, ...look })
-    setBusy(false)
-    if (error) return setErrors({ form: `${t('errSave')} (${error.message})` })
-    setName('')
-    setBudget('')
-    setLook({ icon: null, color: null })
-    onAdded()
-  }
-
   return (
-    <form
-      onSubmit={add}
-      noValidate
-      className="no-print flex flex-col gap-2 rounded-2xl border border-dashed border-accent p-4"
-    >
-      <div>
-        <input
-          placeholder={t('envelopeName')}
-          aria-label={t('envelopeName')}
-          aria-invalid={!!errors.name}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-xl border border-border bg-surface px-3 py-2"
-        />
-        {errors.name && <p className="mt-1 px-1 text-sm text-over">{errors.name}</p>}
-      </div>
-      <div>
-        <input
-          inputMode="decimal"
-          placeholder={t('envelopeBudget')}
-          aria-label={t('envelopeBudget')}
-          aria-invalid={!!errors.budget}
-          value={budget}
-          onChange={(e) => setBudget(e.target.value)}
-          className="w-full rounded-xl border border-border bg-surface px-3 py-2"
-        />
-        {errors.budget && <p className="mt-1 px-1 text-sm text-over">{errors.budget}</p>}
-      </div>
-      <IconPicker icon={look.icon} color={look.color} onChange={setLook} />
-      <label className="flex items-center gap-2 px-1 text-sm text-muted">
-        <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
-        {t('recurringLabel')}
-      </label>
-      {errors.form && <p className="px-1 text-sm text-over">{errors.form}</p>}
-      <button disabled={busy} className="rounded-full bg-accent-strong px-4 py-2 font-medium text-white">
-        {t('addEnvelope')}
-      </button>
-    </form>
+    <section className="flex flex-col gap-1">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em]">{group.name}</p>
+      <p className="flex flex-wrap gap-x-3 text-xs text-muted">
+        {t('emptyGroup')}
+        <button onClick={onAdd} className="no-print text-accent-strong underline">
+          {t('addEnvelope')}
+        </button>
+        <button onClick={onDelete} className="no-print underline">
+          {t('deleteGroup')}
+        </button>
+      </p>
+    </section>
   )
 }

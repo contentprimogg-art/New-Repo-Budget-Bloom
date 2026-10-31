@@ -10,6 +10,14 @@ export interface Envelope {
   icon: string | null
   sort: number
   recurring: boolean
+  group_id?: string | null
+}
+
+export interface EnvelopeGroup {
+  id: string
+  household_id: string
+  name: string
+  sort: number
 }
 
 export interface Profile {

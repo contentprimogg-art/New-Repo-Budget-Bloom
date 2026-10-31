@@ -1,13 +1,17 @@
+import { ChevronDown, TriangleAlert } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtMoney, fmtMonth, parseAmount } from '../lib/format'
+import { useDataVersion } from '../lib/realtime'
 import { supabase } from '../lib/supabase'
 import { shiftMonth } from '../lib/types'
+import StripeBar from './ui/StripeBar'
+import SummaryColumns from './ui/SummaryColumns'
 
 type Field = 'start_balance' | 'end_balance'
 
-// Champ de solde: valide au blur ou sur Entrée, vide = pas de solde renseigné.
-function BalanceField({
+// Ligne « solde » du volet de détails: étiquette à gauche, saisie soulignée à droite.
+function BalanceRow({
   label,
   value,
   saved,
@@ -16,7 +20,6 @@ function BalanceField({
 }: {
   label: string
   value: string
-  /** Vrai un court instant après un enregistrement réussi. */
   saved: boolean
   onSave: (raw: string) => Promise<boolean>
   children?: React.ReactNode
@@ -41,50 +44,58 @@ function BalanceField({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-1 text-sm">
-      <label className="flex items-center justify-between gap-2">
-        <span className="text-muted">{label}</span>
-        {saved && <span className="text-xs font-medium text-accent-strong">{t('savedTick')}</span>}
-      </label>
-      <input
-        inputMode="decimal"
-        placeholder="0,00"
-        aria-label={label}
-        aria-invalid={invalid}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => void commit()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur()
-        }}
-        className="w-full rounded-2xl border border-border bg-surface px-3 py-2 tabular-nums"
-      />
+    <li className="flex flex-col gap-1 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm">
+          {label}
+          {saved && <span className="ml-2 text-xs font-medium text-accent-strong">{t('savedTick')}</span>}
+        </span>
+        <input
+          inputMode="decimal"
+          placeholder="—"
+          aria-label={label}
+          aria-invalid={invalid}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => void commit()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
+          }}
+          className="field-line w-32 text-right tabular-nums"
+        />
+      </div>
       {children}
-    </div>
+    </li>
   )
 }
 
+// Résumé du mois façon moodboard: SOLDE | BUDGÉTÉ | DÉPENSÉ, barre à rayures, « X restants sur Y »,
+// puis un volet « Soldes et prévisions » (solde de début/fin, à répartir, solde estimé, écart).
 export default function MonthSummary({
   householdId,
   month,
   totalBudget,
   totalSpent,
   totalOver,
+  overCount,
 }: {
   householdId: string
   month: string
   totalBudget: number
   totalSpent: number
   totalOver: number
+  overCount: number
 }) {
   const { t, i18n } = useTranslation()
   const lng = i18n.language
+  const version = useDataVersion()
   const money = (n: number) => fmtMoney(n, lng)
   const asField = (n: number | null) => (n == null ? '' : String(n).replace('.', lng.startsWith('fr') ? ',' : '.'))
   const [balances, setBalances] = useState<{ start: number | null; end: number | null }>({ start: null, end: null })
   const [prevEnd, setPrevEnd] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState<Field | null>(null)
+  const [open, setOpen] = useState(false)
   const prevMonth = shiftMonth(month, -1)
 
   useEffect(() => {
@@ -100,7 +111,7 @@ export default function MonthSummary({
         setBalances({ start: num(current?.start_balance), end: num(current?.end_balance) })
         setPrevEnd(num(data?.find((r) => r.month === prevMonth)?.end_balance))
       })
-  }, [householdId, month, prevMonth, t])
+  }, [householdId, month, prevMonth, t, version])
 
   const save = (field: Field) => async (raw: string) => {
     const value = raw.trim() === '' ? null : parseAmount(raw)
@@ -123,74 +134,85 @@ export default function MonthSummary({
   }
 
   const { start, end } = balances
-  const remaining = totalBudget - totalSpent
+  const left = totalBudget - totalSpent
   const toAllocate = start == null ? null : start - totalBudget
   const estimated = start == null ? null : start - totalSpent
   const gap = end != null && estimated != null ? end - estimated : null
 
   return (
-    <section className="flex flex-col gap-4 rounded-3xl border border-border bg-surface p-4 shadow-sm">
-      <dl className="grid grid-cols-3 gap-3 text-sm">
-        {(
-          [
-            [t('budgeted'), totalBudget],
-            [t('spent'), totalSpent],
-            [t('remaining'), Math.max(remaining, 0)],
-          ] as const
-        ).map(([label, value]) => (
-          <div key={label}>
-            <dt className="text-muted">{label}</dt>
-            <dd className="text-base font-semibold tabular-nums">{money(value)}</dd>
-          </div>
-        ))}
-      </dl>
+    <section className="flex flex-col gap-4">
+      <SummaryColumns
+        items={[
+          { label: t('colBalance'), value: start == null ? '—' : money(start), tone: 'var(--chart-2)' },
+          { label: t('budgeted'), value: money(totalBudget), tone: 'var(--ok)' },
+          { label: t('spent'), value: money(totalSpent), tone: 'var(--accent-strong)', valueClassName: left < 0 ? 'text-over' : '' },
+        ]}
+      />
+      <StripeBar spent={totalSpent} budget={totalBudget} label={`${t('spent')} ${money(totalSpent)} / ${money(totalBudget)}`} />
+      <p className="text-center text-sm">
+        {left >= 0 ? (
+          <>
+            <span className="font-semibold text-ok-ink">{money(left)}</span> {t('leftOf')} <span className="font-semibold">{money(totalBudget)}</span>
+          </>
+        ) : (
+          <span className="font-semibold text-over">{t('overBy', { amount: money(-left) })}</span>
+        )}
+      </p>
       {totalOver > 0 && (
-        <p role="status" className="rounded-2xl bg-over/10 px-3 py-2 text-sm font-semibold text-over">
-          {t('totalOver', { amount: money(totalOver) })}
+        <p role="status" className="-mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-over">
+          <TriangleAlert size={13} /> {t('overEnvelopes', { count: overCount, amount: money(totalOver) })}
         </p>
       )}
 
-      <div className="flex gap-3">
-        <BalanceField
-          label={t('startBalance')}
-          value={asField(start)}
-          saved={flash === 'start_balance'}
-          onSave={save('start_balance')}
-        >
-          {start == null && prevEnd != null && (
-            <button
-              type="button"
-              onClick={() => void save('start_balance')(String(prevEnd)).then((ok) => ok && setBalances((b) => ({ ...b, start: prevEnd })))}
-              className="text-left text-xs text-accent-strong underline"
-            >
-              {t('reusePrev', { amount: money(prevEnd), month: fmtMonth(prevMonth, lng) })}
-            </button>
-          )}
-        </BalanceField>
-        <BalanceField label={t('endBalance')} value={asField(end)} saved={flash === 'end_balance'} onSave={save('end_balance')} />
+      <div className="no-print">
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="mx-auto flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+          {t('balancesAndForecast')}
+          <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <ul className="fade-up mt-2 divide-y divide-dashed divide-muted/30">
+            <BalanceRow label={t('startBalance')} value={asField(start)} saved={flash === 'start_balance'} onSave={save('start_balance')}>
+              {start == null && prevEnd != null && (
+                <button type="button" onClick={() => void save('start_balance')(String(prevEnd))} className="self-start text-xs text-accent-strong underline">
+                  {t('reusePrev', { amount: money(prevEnd), month: fmtMonth(prevMonth, lng) })}
+                </button>
+              )}
+            </BalanceRow>
+            <BalanceRow label={t('endBalance')} value={asField(end)} saved={flash === 'end_balance'} onSave={save('end_balance')} />
+            {toAllocate != null && (
+              <li className="flex items-center justify-between gap-3 py-2.5 text-sm" title={t('toAllocateHint')}>
+                <span>
+                  {t('toAllocate')}
+                  <span className="block text-xs text-muted">{t('toAllocateHint')}</span>
+                </span>
+                <span className={`font-medium tabular-nums ${toAllocate < 0 ? 'text-over' : ''}`}>{money(toAllocate)}</span>
+              </li>
+            )}
+            {estimated != null && (
+              <li className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span>
+                  {t('estimatedBalance')}
+                  <span className="block text-xs text-muted">{t('estimatedHint')}</span>
+                </span>
+                <span className="font-medium tabular-nums">{money(estimated)}</span>
+              </li>
+            )}
+            {gap != null && (
+              <li className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span>
+                  {t('balanceGap')}
+                  <span className="block text-xs text-muted">{t('balanceGapHint')}</span>
+                </span>
+                <span className="font-medium tabular-nums">
+                  {gap > 0 ? '+' : ''}
+                  {money(gap)}
+                </span>
+              </li>
+            )}
+            {toAllocate != null && toAllocate < 0 && <li className="py-2 text-xs text-over">{t('overAllocatedBudget')}</li>}
+          </ul>
+        )}
       </div>
-
-      {/* Les soldes se combinent avec les enveloppes. */}
-      {toAllocate != null && estimated != null && (
-        <dl className="grid grid-cols-2 gap-3 rounded-2xl bg-accent-soft/50 p-3 text-sm">
-          <div title={t('toAllocateHint')}>
-            <dt className="text-muted">{t('toAllocate')}</dt>
-            <dd className={`text-base font-semibold tabular-nums ${toAllocate < 0 ? 'text-over' : ''}`}>
-              {money(toAllocate)}
-            </dd>
-          </div>
-          <div title={t('estimatedHint')}>
-            <dt className="text-muted">{t('estimatedBalance')}</dt>
-            <dd className="text-base font-semibold tabular-nums">{money(estimated)}</dd>
-          </div>
-          {toAllocate < 0 && <p className="col-span-2 text-xs text-over">{t('overAllocatedBudget')}</p>}
-          {gap != null && (
-            <p className="col-span-2 text-xs text-muted">
-              {t('balanceGap')}: <span className="font-medium tabular-nums text-text">{gap > 0 ? '+' : ''}{money(gap)}</span> · {t('balanceGapHint')}
-            </p>
-          )}
-        </dl>
-      )}
       {error && <p className="text-sm text-over">{error}</p>}
     </section>
   )

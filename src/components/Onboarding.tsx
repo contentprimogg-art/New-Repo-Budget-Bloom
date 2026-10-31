@@ -29,8 +29,8 @@ export default function Onboarding({ onDone }: { onDone: (id: string) => void })
     else onDone(data as string)
   }
 
-  const input = 'w-full rounded-xl border border-border bg-surface px-4 py-3'
-  const button = 'rounded-full bg-accent-strong px-4 py-3 font-medium text-white'
+  const input = 'field-line w-full text-base'
+  const button = 'rounded-full bg-accent-strong px-4 py-3 font-medium text-on-accent'
 
   return (
     <main className="fade-up mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-8 px-4">
