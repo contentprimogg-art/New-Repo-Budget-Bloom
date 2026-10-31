@@ -1,7 +1,7 @@
-import { Check, Download, Upload } from 'lucide-react'
+import { Check, Download, Moon, Sun, SunMoon, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { resizeToJpeg } from '../lib/avatar'
+import { ACCEPT, isImageFile, prepareAvatar } from '../lib/avatar'
 import { outboxCount } from '../lib/expenses'
 import { downloadFile } from '../lib/files'
 import { todayIso } from '../lib/format'
@@ -10,7 +10,17 @@ import { parseBackup, restoreBackup, type Backup } from '../lib/restore'
 import { signOut } from '../lib/session'
 import { buildBackup } from '../lib/stats'
 import { supabase } from '../lib/supabase'
-import { PRESETS, applyPalette, customPalette, storePalette, type Palette } from '../lib/theme'
+import {
+  PRESETS,
+  applyPalette,
+  applyThemeMode,
+  customPalette,
+  storePalette,
+  storeThemeMode,
+  storedThemeMode,
+  type Palette,
+  type ThemeMode,
+} from '../lib/theme'
 import Avatar from './Avatar'
 import ConfirmButton from './ConfirmButton'
 import InviteCode from './InviteCode'
@@ -35,8 +45,9 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
   const [backup, setBackup] = useState<Backup | null>(null)
   const [viewer, setViewer] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [mode, setMode] = useState<ThemeMode>(storedThemeMode)
 
-  const path = `${userId}/avatar.jpg`
+  const photoPaths = [`${userId}/avatar.jpg`, `${userId}/avatar.gif`]
   const done = (text: string) => {
     setError(null)
     setMessage(text)
@@ -50,18 +61,21 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    if (!file.type.startsWith('image/')) return failed(t('errNotImage'))
+    if (!isImageFile(file)) return failed(t('errNotImage'))
     setBusy(true)
     try {
-      // 768 px: assez net pour l'écran de connexion, léger pour les pastilles.
-      const blob = await resizeToJpeg(file, 768)
-      const up = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+      const { blob, ext, type } = await prepareAvatar(file)
+      const path = `${userId}/avatar.${ext}`
+      const up = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: type })
       if (up.error) throw up.error
+      // L'ancienne photo dans l'autre format (JPEG ou GIF) est retirée.
+      await supabase.storage.from('avatars').remove(photoPaths.filter((x) => x !== path))
       const { error } = await supabase.auth.updateUser({ data: { avatar_path: path, avatar_version: Date.now() } })
       if (error) throw error
       done(t('photoSaved'))
     } catch (err) {
-      failed(`${t('errSave')} (${(err as Error).message})`)
+      const msg = (err as Error).message
+      failed(/mime|size|too large|payload/i.test(msg) ? t('errMigration0007') : `${t('errPhoto')} (${msg})`)
     } finally {
       setBusy(false)
     }
@@ -69,11 +83,17 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
 
   async function removePhoto() {
     setBusy(true)
-    const rm = await supabase.storage.from('avatars').remove([path])
+    const rm = await supabase.storage.from('avatars').remove(photoPaths)
     const { error } = await supabase.auth.updateUser({ data: { avatar_path: '', avatar_version: Date.now() } })
     setBusy(false)
     if (rm.error || error) return failed(`${t('errSave')} (${(rm.error ?? error)!.message})`)
     done(t('photoRemoved'))
+  }
+
+  function chooseMode(next: ThemeMode) {
+    setMode(next)
+    applyThemeMode(next)
+    storeThemeMode(next)
   }
 
   async function saveName(e: React.FormEvent) {
@@ -144,8 +164,8 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
           </button>
           <div className="flex min-w-0 flex-col items-start gap-2">
             <p className="truncate text-lg font-medium">{[profile.firstName, profile.lastName].filter(Boolean).join(' ') || t('profileNone')}</p>
-            <input ref={photoInput} type="file" accept="image/*" onChange={onPickPhoto} className="hidden" />
-            <button disabled={busy} onClick={() => photoInput.current?.click()} className="rounded-full border border-border px-4 py-2 text-sm hover:border-accent">
+            <input ref={photoInput} type="file" accept={ACCEPT} onChange={onPickPhoto} className="hidden" />
+            <button disabled={busy} onClick={() => photoInput.current?.click()} className="rounded-2xl border border-border px-4 py-2 text-sm hover:border-accent">
               {busy ? t('loading') : t('changePhoto')}
             </button>
             {avatarUrl && (
@@ -173,6 +193,26 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
       </Card>
 
       <Card title={t('appearance')} description={t('paletteHint')}>
+        <div role="radiogroup" aria-label={t('theme')} className="mb-5 inline-flex rounded-2xl border border-border bg-surface p-1 text-sm">
+          {(
+            [
+              ['auto', SunMoon, t('themeAuto')],
+              ['light', Sun, t('themeLight')],
+              ['dark', Moon, t('themeDark')],
+            ] as const
+          ).map(([m, Icon, label]) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={mode === m}
+              onClick={() => chooseMode(m)}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 ${mode === m ? 'bg-accent-soft font-medium text-accent-strong' : 'text-muted'}`}
+            >
+              <Icon size={15} /> {label}
+            </button>
+          ))}
+        </div>
         <div role="radiogroup" aria-label={t('palette')} className="grid grid-cols-3 gap-y-4 sm:grid-cols-6">
           {[...PRESETS, custom].map((p) => {
             const selected = current.id === p.id
@@ -206,11 +246,11 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
 
       <Card title={t('data')} description={t('dataHint')}>
         <div className="flex flex-wrap gap-3">
-          <button onClick={() => void downloadBackup()} className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm hover:border-accent">
+          <button onClick={() => void downloadBackup()} className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2 text-sm hover:border-accent">
             <Download size={16} /> {t('fullBackup')}
           </button>
           <input ref={backupInput} type="file" accept="application/json,.json" onChange={onPickBackup} className="hidden" />
-          <button onClick={() => backupInput.current?.click()} className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm hover:border-accent">
+          <button onClick={() => backupInput.current?.click()} className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2 text-sm hover:border-accent">
             <Upload size={16} /> {t('restoreBackup')}
           </button>
         </div>

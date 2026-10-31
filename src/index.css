@@ -13,7 +13,10 @@
   --on-accent: #ffffff;
   /* Fond papier chaud, avec un grain léger par-dessus (voir body::before). */
   --paper: #f8f4ed;
-  --grain-opacity: 0.55;
+  --grain-opacity: 0.72;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .2 0 0 0 0 .18 0 0 0 .14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --scrim: rgb(20 18 24 / 0.32);
+  color-scheme: light;
   --ok: #4fae78;
   /* Vert lisible pour du texte (le vert des rayures est trop clair pour être lu) */
   --ok-ink: color-mix(in oklab, var(--ok) 68%, black);
@@ -23,10 +26,49 @@
   --chart-2: #6c8ed6;
 }
 
+/* Mode sombre: suit le téléphone (« Automatique »), ou forcé depuis le Profil (data-theme). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+  --bg: #141316;
+    --paper: #18161b;
+    --surface: #222026;
+    --border: #36323b;
+    --text: #f2ede7;
+    --muted: #a69fa8;
+    --accent: color-mix(in oklab, var(--accent-strong) 78%, white);
+    --accent-soft: color-mix(in oklab, var(--accent-strong) 24%, #222026);
+    --ok: #5cc28a;
+    --ok-ink: color-mix(in oklab, var(--ok) 82%, white);
+    --over: #f06d78;
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95 0 0 0 0 .92 0 0 0 0 .9 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    --grain-opacity: 0.8;
+    --scrim: rgb(0 0 0 / 0.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #141316;
+  --paper: #18161b;
+  --surface: #222026;
+  --border: #36323b;
+  --text: #f2ede7;
+  --muted: #a69fa8;
+  --accent: color-mix(in oklab, var(--accent-strong) 78%, white);
+  --accent-soft: color-mix(in oklab, var(--accent-strong) 24%, #222026);
+  --ok: #5cc28a;
+  --ok-ink: color-mix(in oklab, var(--ok) 82%, white);
+  --over: #f06d78;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95 0 0 0 0 .92 0 0 0 0 .9 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --grain-opacity: 0.8;
+  --scrim: rgb(0 0 0 / 0.55);
+  color-scheme: dark;
+}
+
 @theme inline {
   --font-script: 'Mrs Saint Delafield', 'Segoe Script', 'Snell Roundhand', cursive;
   --font-sans: 'Montserrat Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --color-bg: var(--bg);
+  --color-scrim: var(--scrim);
   --color-paper: var(--paper);
   --color-text: var(--text);
   --color-muted: var(--muted);
@@ -64,7 +106,7 @@ body::before {
   pointer-events: none;
   opacity: var(--grain-opacity);
   background-size: 200px 200px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .2 0 0 0 0 .18 0 0 0 .14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: var(--grain);
 }
 
 /* Tailwind v4 remet le curseur par défaut sur les boutons */
@@ -121,6 +163,17 @@ button:not(:disabled):active {
 /* La liste déroulante se cale sur la taille du bouton: pas d'effet de pression qui la fausserait. */
 button[role='combobox']:not(:disabled):active {
   transform: none;
+}
+
+/* Coque de l'app: occupe exactement l'écran visible (100dvh suit les barres du navigateur),
+   le contenu défile à l'intérieur et la barre d'onglets reste posée en bas, jamais masquée. */
+.app-shell {
+  height: 100dvh;
+}
+.app-scroll {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Champ « au trait » du style calligraphique: seulement une ligne en pointillés dessous. */
@@ -285,6 +338,12 @@ button[role='combobox']:not(:disabled):active {
 }
 
 @media print {
+  .app-shell {
+    height: auto;
+  }
+  .app-scroll {
+    overflow: visible;
+  }
   body::before {
     display: none;
   }

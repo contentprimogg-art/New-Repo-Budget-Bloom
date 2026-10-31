@@ -84,3 +84,42 @@ export function storePalette(p: Palette) {
     /* stockage indisponible */
   }
 }
+
+// ---- Thème clair / sombre ----
+// « auto » suit le réglage du téléphone; « light » / « dark » le forcent (attribut data-theme).
+// Ce choix est propre à chaque appareil (stocké localement).
+
+export type ThemeMode = 'auto' | 'light' | 'dark'
+const MODE_KEY = 'bloomTheme'
+
+export function storedThemeMode(): ThemeMode {
+  try {
+    const v = localStorage.getItem(MODE_KEY)
+    return v === 'light' || v === 'dark' ? v : 'auto'
+  } catch {
+    return 'auto'
+  }
+}
+
+/** La barre du navigateur prend la couleur du fond papier du thème actif. */
+export function syncThemeColor() {
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+  const paper = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()
+  if (meta && paper) meta.content = paper
+}
+
+export function applyThemeMode(mode: ThemeMode) {
+  const root = document.documentElement
+  if (mode === 'auto') root.removeAttribute('data-theme')
+  else root.setAttribute('data-theme', mode)
+  syncThemeColor()
+}
+
+export function storeThemeMode(mode: ThemeMode) {
+  try {
+    if (mode === 'auto') localStorage.removeItem(MODE_KEY)
+    else localStorage.setItem(MODE_KEY, mode)
+  } catch {
+    /* stockage indisponible */
+  }
+}

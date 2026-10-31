@@ -149,6 +149,7 @@ export default function Home({ householdId }: { householdId: string }) {
     <PageShell
       wide
       title={t('tabBudget')}
+      fab={envelopes.length > 0 ? <Fab label={t('newExpense')} onClick={() => setSheet({ kind: 'quick' })} /> : undefined}
       subtitle={
         <div className="mt-2 inline-flex items-center rounded-full border border-border bg-surface py-0.5 text-[11.5px] font-semibold uppercase tracking-[0.2em] text-text">
           <button
@@ -282,8 +283,6 @@ export default function Home({ householdId }: { householdId: string }) {
           </button>
         </div>
       </div>
-
-      {envelopes.length > 0 && <Fab label={t('newExpense')} onClick={() => setSheet({ kind: 'quick' })} />}
 
       {sheet?.kind === 'quick' && <QuickAddSheet envelopes={envelopes} onClose={() => setSheet(null)} onAdded={onAdded} />}
       {sheet?.kind === 'envelope' && (

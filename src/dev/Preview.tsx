@@ -55,6 +55,7 @@ export default function Preview() {
     <PageShell
       wide
       title="Budget"
+      fab={<Fab label="Nouvelle dépense" onClick={() => setQuick(true)} />}
       subtitle={
         <div className="mt-2 inline-flex items-center rounded-full border border-border bg-surface py-0.5 text-[11.5px] font-semibold uppercase tracking-[0.2em] text-text">
           <span className="grid size-8 place-items-center">
@@ -122,7 +123,6 @@ export default function Preview() {
       </Card>
       <Card title="Langue" description="Choisissez la langue de l'application." action={<LanguageSwitch full />} />
 
-      <Fab label="Nouvelle dépense" onClick={() => setQuick(true)} />
       {quick && <QuickAddSheet envelopes={ENVS} onClose={() => setQuick(false)} onAdded={() => {}} />}
       {hash.includes('picker') && (
         <Sheet title="Icône" onClose={() => {}}>

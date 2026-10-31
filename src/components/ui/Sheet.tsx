@@ -29,7 +29,7 @@ export default function Sheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-text/30 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-scrim sm:items-center sm:p-4"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div

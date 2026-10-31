@@ -8,6 +8,13 @@
     <meta name="theme-color" content="#F8F4ED" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Budget Bloom</title>
+    <script>
+      // Thème forcé (clair/sombre) appliqué avant tout affichage, sans flash.
+      try {
+        var m = localStorage.getItem('bloomTheme')
+        if (m === 'light' || m === 'dark') document.documentElement.setAttribute('data-theme', m)
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <!-- Filtre « aquarelle » (bord irrégulier) utilisé par le bouton rond « + ». -->
@@ -19,7 +26,7 @@
     </svg>
     <!-- Écran de démarrage affiché avant le chargement de l'app (remplacé par React au démarrage). -->
     <div id="root">
-      <div style="min-height: 100dvh; display: grid; place-items: center; background: #f8f4ed">
+      <div class="boot" style="min-height: 100dvh; display: grid; place-items: center">
         <img
           src="/favicon.svg"
           alt=""
@@ -30,6 +37,9 @@
       </div>
     </div>
     <style>
+      .boot { background: #f8f4ed; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .boot { background: #18161b; } }
+      :root[data-theme='dark'] .boot { background: #18161b; }
       @keyframes breathe {
         0%, 100% { transform: scale(1); opacity: 0.92; }
         50% { transform: scale(1.06); opacity: 1; }

@@ -127,6 +127,7 @@ export default function EnvelopeDetail({
     <PageShell
       wide
       title={envelope.name}
+      fab={<Fab label={t('newExpense')} onClick={() => setSheet('quick')} />}
       left={
         <IconButton label={t('back')} onClick={onClose}>
           <ChevronLeft size={22} />
@@ -229,8 +230,6 @@ export default function EnvelopeDetail({
             ))}
         </section>
       </div>
-
-      <Fab label={t('newExpense')} onClick={() => setSheet('quick')} />
 
       {sheet === 'quick' && (
         <QuickAddSheet envelopes={envelopes} defaultEnvelopeId={envelope.id} onClose={() => setSheet(null)} onAdded={() => refresh()} />

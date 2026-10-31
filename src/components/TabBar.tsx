@@ -38,7 +38,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label={t('navigation')}
-      className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="no-print z-30 shrink-0 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
     >
       <ul className="mx-auto grid max-w-md grid-cols-4">
         {TABS.map(([page, href, key, Icon]) => {

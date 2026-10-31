@@ -34,7 +34,7 @@ export default function KeepDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-text/30 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-4 sm:items-center"
       onMouseDown={(e) => e.target === e.currentTarget && onCancel()}
     >
       <div role="dialog" aria-modal="true" aria-label={t('keepTitle')} className="fade-up flex max-h-[80dvh] w-full max-w-sm flex-col gap-3 overflow-y-auto rounded-2xl bg-surface p-5 shadow-xl">

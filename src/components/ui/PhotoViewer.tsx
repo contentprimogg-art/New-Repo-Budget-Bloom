@@ -38,7 +38,7 @@ export default function PhotoViewer({ url, onClose }: { url: string; onClose: ()
       role="dialog"
       aria-modal="true"
       aria-label={t('profilePhoto')}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-text/80 p-6 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-black/80 p-6 backdrop-blur-sm"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <button onClick={onClose} aria-label={t('close')} className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] rounded-full bg-surface/15 p-2 text-white">

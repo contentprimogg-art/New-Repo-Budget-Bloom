@@ -25,6 +25,7 @@ Les migrations sont dans `supabase/migrations/`. À exécuter **dans l'ordre, un
 4. `0004_savings.sql`: épargne (enveloppes, sous-enveloppes, paliers, mouvements)
 5. `0005_avatars.sql`: stockage privé des photos de profil
 6. `0006_groups_realtime.sql`: groupes d'enveloppes, icônes de l'épargne, mise à jour en direct entre appareils
+7. `0007_avatar_formats.sql`: photos de profil en GIF et jusqu’à 5 Mo
 
 ## Aperçu des composants (développement)
 

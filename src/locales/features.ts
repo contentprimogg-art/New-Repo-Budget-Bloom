@@ -1,6 +1,15 @@
 // Textes des écrans Épargne, Conseils et Bilan (fusionnés dans i18n.ts).
 export const features = {
   fr: {
+    show: 'Afficher',
+    hide: 'Masquer',
+    inviteHidden: "Code d'invitation masqué",
+    theme: 'Thème',
+    themeAuto: 'Auto',
+    themeLight: 'Clair',
+    themeDark: 'Sombre',
+    errPhoto: "Cette photo n'a pas pu être lue",
+    errMigration0007: 'Pour les GIF et les photos lourdes, exécutez la migration 0007_avatar_formats.sql dans Supabase.',
     settings: 'Réglages',
     home: 'Accueil',
     preview: 'Aperçu',
@@ -224,6 +233,15 @@ export const features = {
     viewTableData: 'Voir les données en tableau',
   },
   en: {
+    show: 'Show',
+    hide: 'Hide',
+    inviteHidden: 'Invite code hidden',
+    theme: 'Theme',
+    themeAuto: 'Auto',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    errPhoto: 'This photo could not be read',
+    errMigration0007: 'For GIFs and large photos, run migration 0007_avatar_formats.sql in Supabase.',
     settings: 'Settings',
     home: 'Home',
     preview: 'Preview',
