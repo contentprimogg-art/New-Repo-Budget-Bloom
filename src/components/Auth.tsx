@@ -16,6 +16,16 @@ const savedName = (() => {
   }
 })()
 
+// Lien d'email expiré ou déjà utilisé: Supabase revient avec « #error_code=… » dans l'adresse.
+// On le lit une fois au chargement puis on nettoie l'adresse.
+const linkError = (() => {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const code = params.get('error_code')
+  if (!code) return null
+  window.history.replaceState(null, '', window.location.pathname)
+  return code === 'otp_expired' ? 'errLinkExpired' : 'errLinkInvalid'
+})()
+
 const ERROR_KEYS: Record<string, string> = {
   invalid_credentials: 'errBadCredentials',
   user_already_exists: 'errAlreadyExists',
@@ -32,7 +42,7 @@ export default function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [mode, setMode] = useState<'in' | 'up' | 'reset'>('in')
-  const [errors, setErrors] = useState<Errors>({})
+  const [errors, setErrors] = useState<Errors>(() => (linkError ? { form: t(linkError) } : {}))
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [resetSent, setResetSent] = useState(false)
   const [busy, setBusy] = useState(false)

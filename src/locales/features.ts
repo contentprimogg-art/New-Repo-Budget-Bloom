@@ -1,6 +1,8 @@
 // Textes des écrans Épargne, Conseils et Bilan (fusionnés dans i18n.ts).
 export const features = {
   fr: {
+    errLinkExpired: 'Ce lien a expiré ou a déjà servi. Demandez-en un nouveau ci-dessous.',
+    errLinkInvalid: "Ce lien n'est pas valide. Demandez-en un nouveau ci-dessous.",
     companionTitle: 'Le mot de Bloom',
     companionShort: 'Le mot de Bloom',
     companionNight: 'Bonne nuit',
@@ -368,6 +370,8 @@ export const features = {
     viewTableData: 'Voir les données en tableau',
   },
   en: {
+    errLinkExpired: 'This link has expired or was already used. Ask for a new one below.',
+    errLinkInvalid: 'This link is not valid. Ask for a new one below.',
     companionTitle: "Bloom's word",
     companionShort: "Bloom's word",
     companionNight: 'Good night',
