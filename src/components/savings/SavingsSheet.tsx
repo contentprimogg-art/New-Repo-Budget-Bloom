@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { emojiTints } from '../../lib/color'
 import { parseAmount } from '../../lib/format'
 import type { SavingsEnvelope } from '../../lib/savings'
 import { supabase } from '../../lib/supabase'
@@ -33,7 +34,9 @@ export default function SavingsSheet({
   const { t } = useTranslation()
   const [name, setName] = useState(envelope?.name ?? '')
   const [target, setTarget] = useState(envelope?.target == null ? '' : String(envelope.target).replace('.', ','))
-  const [look, setLook] = useState({ icon: envelope?.icon ?? 'piggy', color: envelope?.color ?? defaultColor })
+  const [look, setLook] = useState(() =>
+    envelope ? { icon: envelope.icon ?? 'piggy', color: envelope.color ?? defaultColor } : { icon: '💰', color: emojiTints('💰')[0] },
+  )
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 

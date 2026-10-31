@@ -2,7 +2,7 @@ import { ChevronLeft, Pencil, Repeat } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtDate, fmtMoney, fmtMonth, parseAmount } from '../lib/format'
-import { IconBadge, badgeColor, colorForIndex } from '../lib/icons'
+import { IconBadge, badgeColor, colorForIndex, isEmoji } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
 import { settleExpense, syncLinkedAmount } from '../lib/savings'
 import { supabase } from '../lib/supabase'
@@ -16,17 +16,17 @@ import {
   type Expense,
   type ExpenseStatus,
 } from '../lib/types'
-import AvatarLink from './AvatarLink'
 import EnvelopeSheet from './budget/EnvelopeSheet'
 import QuickAddSheet from './budget/QuickAddSheet'
 import EnvelopeTable from './EnvelopeTable'
 import KeepDialog from './KeepDialog'
 import ScriptTitle from './ScriptTitle'
-import { BottomNav } from './TabBar'
 import Tips from './Tips'
 import Fab from './ui/Fab'
 import HatchedDonut from './ui/HatchedDonut'
-import PageHeader, { IconButton } from './ui/PageHeader'
+import Card from './ui/Card'
+import { IconButton } from './ui/PageHeader'
+import PageShell from './ui/PageShell'
 import SummaryColumns from './ui/SummaryColumns'
 
 type DetailView = 'list' | 'grid' | 'table'
@@ -124,66 +124,69 @@ export default function EnvelopeDetail({
   const group = groups.find((g) => g.id === envelope.group_id)
 
   return (
-    <main className="fade-up mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-5 px-5 pb-36 pt-[max(1.25rem,env(safe-area-inset-top))] md:pb-16 lg:max-w-5xl">
-      <PageHeader
-        left={
-          <IconButton label={t('back')} onClick={onClose}>
-            <ChevronLeft size={20} />
-          </IconButton>
-        }
-        center={<span className="truncate">{fmtMonth(envelope.month, lng)}</span>}
-        right={<AvatarLink />}
-      />
-
-      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-14">
-        <div className="flex flex-col gap-5 lg:sticky lg:top-6">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <IconBadge icon={envelope.icon} color={envelope.color} size="lg" />
-            <h1 className="text-2xl font-medium">{envelope.name}</h1>
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-              {group && <span>{group.name}</span>}
-              {envelope.recurring && (
-                <span className="flex items-center gap-1">
-                  <Repeat size={12} /> {t('monthly')}
-                </span>
-              )}
-            </p>
-            <button onClick={() => setSheet('edit')} className="no-print flex items-center gap-1.5 text-xs text-accent-strong underline">
-              <Pencil size={12} /> {t('renameEdit')}
-            </button>
-          </div>
-
-          <HatchedDonut
-            size={240}
-            labels={false}
-            gapColor="var(--paper)"
-            ariaLabel={`${envelope.name}: ${money(stats.spent)} / ${money(envelope.budget)}`}
-            format={money}
-            slices={
-              over
-                ? [{ key: 'over', label: t('overLabel'), value: stats.spent, color: 'var(--over)' }]
-                : [
-                    { key: 'spent', label: t('spent'), value: stats.spent, color: badgeColor(envelope.color) },
-                    { key: 'left', label: t('remaining'), value: Math.max(stats.remaining, 0), color: 'var(--ok)' },
-                  ]
-            }
-            center={
-              <>
-                <span className={`text-3xl font-medium tabular-nums ${over ? 'text-over' : ''}`}>{stats.percent}%</span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">{t('used')}</span>
-              </>
-            }
-          />
-
-          <SummaryColumns
-            items={[
-              { label: t('spent'), value: money(stats.spent), tone: badgeColor(envelope.color) },
-              { label: t('budget'), value: money(envelope.budget), tone: 'var(--chart-2)' },
-              over
-                ? { label: t('overLabel'), value: money(stats.overBy), tone: 'var(--over)', valueClassName: 'text-over' }
-                : { label: t('remaining'), value: money(stats.remaining), tone: 'var(--ok)' },
-            ]}
-          />
+    <PageShell
+      wide
+      title={envelope.name}
+      left={
+        <IconButton label={t('back')} onClick={onClose}>
+          <ChevronLeft size={22} />
+        </IconButton>
+      }
+      subtitle={
+        <span className="flex flex-wrap items-center gap-x-2 text-[11px] font-semibold uppercase tracking-[0.16em]">
+          <span>{fmtMonth(envelope.month, lng)}</span>
+          {group && <span>· {group.name}</span>}
+          {envelope.recurring && (
+            <span className="flex items-center gap-1">
+              · <Repeat size={11} /> {t('monthly')}
+            </span>
+          )}
+        </span>
+      }
+      action={
+        <IconButton label={t('renameEdit')} onClick={() => setSheet('edit')}>
+          <Pencil size={19} />
+        </IconButton>
+      }
+    >
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-12">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-6">
+          <Card>
+            <div className="flex flex-col items-center gap-4">
+              <IconBadge icon={envelope.icon} color={envelope.color} size="lg" />
+              <HatchedDonut
+                size={230}
+                labels={false}
+                ariaLabel={`${envelope.name}: ${money(stats.spent)} / ${money(envelope.budget)}`}
+                format={money}
+                slices={
+                  over
+                    ? [{ key: 'over', label: t('overLabel'), value: stats.spent, color: 'var(--over)' }]
+                    : [
+                        { key: 'spent', label: t('spent'), value: stats.spent, color: isEmoji(envelope.icon) ? 'var(--accent-strong)' : badgeColor(envelope.color) },
+                        { key: 'left', label: t('remaining'), value: Math.max(stats.remaining, 0), color: 'var(--ok)' },
+                      ]
+                }
+                center={
+                  <>
+                    <span className={`text-3xl font-medium tabular-nums ${over ? 'text-over' : ''}`}>{stats.percent}%</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">{t('used')}</span>
+                  </>
+                }
+              />
+              <div className="w-full">
+                <SummaryColumns
+                  items={[
+                    { label: t('spent'), value: money(stats.spent), tone: 'var(--accent-strong)' },
+                    { label: t('budget'), value: money(envelope.budget), tone: 'var(--chart-2)' },
+                    over
+                      ? { label: t('overLabel'), value: money(stats.overBy), tone: 'var(--over)', valueClassName: 'text-over' }
+                      : { label: t('remaining'), value: money(stats.remaining), tone: 'var(--ok)' },
+                  ]}
+                />
+              </div>
+            </div>
+          </Card>
 
           <Tips
             tips={envelopeTips({
@@ -201,26 +204,33 @@ export default function EnvelopeDetail({
         <section className="flex flex-col gap-3">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <ScriptTitle>{t('transactions')}</ScriptTitle>
-            <div className="mb-1">
+            <div className="mb-2">
               <ViewSwitch view={view} onChange={changeView} />
             </div>
           </div>
-          {loaded && expenses.length === 0 && view !== 'table' && <p className="text-sm text-muted">{t('noTransactions')}</p>}
+          {loaded && expenses.length === 0 && view !== 'table' && <Card description={t('noTransactions')} />}
           {(view === 'table' || expenses.length > 0) &&
             (view === 'table' ? (
               <EnvelopeTable envelope={envelope} expenses={expenses} onChanged={refresh} />
-            ) : (
-              <ul className={view === 'grid' ? 'grid grid-cols-2 gap-3 md:grid-cols-3' : 'divide-y divide-dashed divide-muted/30'}>
+            ) : view === 'grid' ? (
+              <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 {expenses.map((e) => (
-                  <TransactionRow key={e.id} householdId={envelope.household_id} expense={e} view={view} onChanged={refresh} />
+                  <TransactionRow key={e.id} householdId={envelope.household_id} expense={e} view="grid" onChanged={refresh} />
                 ))}
               </ul>
+            ) : (
+              <Card>
+                <ul className="-my-2 divide-y divide-dashed divide-muted/30">
+                  {expenses.map((e) => (
+                    <TransactionRow key={e.id} householdId={envelope.household_id} expense={e} view="list" onChanged={refresh} />
+                  ))}
+                </ul>
+              </Card>
             ))}
         </section>
       </div>
 
       <Fab label={t('newExpense')} onClick={() => setSheet('quick')} />
-      <BottomNav />
 
       {sheet === 'quick' && (
         <QuickAddSheet envelopes={envelopes} defaultEnvelopeId={envelope.id} onClose={() => setSheet(null)} onAdded={() => refresh()} />
@@ -241,7 +251,7 @@ export default function EnvelopeDetail({
           }}
         />
       )}
-    </main>
+    </PageShell>
   )
 }
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { emojiTints } from '../../lib/color'
 import { parseAmount } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
 import type { Envelope, EnvelopeGroup } from '../../lib/types'
@@ -40,7 +41,9 @@ export default function EnvelopeSheet({
   const [budget, setBudget] = useState(envelope ? String(envelope.budget).replace('.', ',') : '')
   const [group, setGroup] = useState(envelope?.group_id ?? defaultGroupId ?? NO_GROUP)
   const [recurring, setRecurring] = useState(envelope?.recurring ?? true)
-  const [look, setLook] = useState({ icon: envelope?.icon ?? 'cart', color: envelope?.color ?? defaultColor })
+  const [look, setLook] = useState(() =>
+    envelope ? { icon: envelope.icon ?? 'cart', color: envelope.color ?? defaultColor } : { icon: '🛒', color: emojiTints('🛒')[0] },
+  )
   const [errors, setErrors] = useState<{ name?: string; budget?: string; form?: string }>({})
   const [busy, setBusy] = useState(false)
 

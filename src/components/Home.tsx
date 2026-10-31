@@ -9,7 +9,6 @@ import { useHash } from '../lib/route'
 import { supabase } from '../lib/supabase'
 import { reallocTips } from '../lib/tips'
 import { countsAsSpent, currentMonth, shiftMonth, type Envelope, type EnvelopeGroup } from '../lib/types'
-import AvatarLink from './AvatarLink'
 import EnvelopeSheet from './budget/EnvelopeSheet'
 import GroupSection from './budget/GroupSection'
 import GroupSheet from './budget/GroupSheet'
@@ -18,11 +17,11 @@ import EnvelopeRow from './budget/EnvelopeRow'
 import EnvelopeDetail from './EnvelopeDetail'
 import MonthSummary from './MonthSummary'
 import ScriptTitle from './ScriptTitle'
-import TabBar, { BottomNav } from './TabBar'
 import Tips from './Tips'
 import Fab from './ui/Fab'
 import { PRIMARY } from './ui/Field'
-import PageHeader, { IconButton } from './ui/PageHeader'
+import Card from './ui/Card'
+import PageShell from './ui/PageShell'
 import Sheet from './ui/Sheet'
 
 const PREFIX = '#/envelope/'
@@ -147,31 +146,38 @@ export default function Home({ householdId }: { householdId: string }) {
   const ungrouped = envelopes.filter((e) => !e.group_id || !groupIds.has(e.group_id))
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-5 px-5 pb-36 pt-[max(1.25rem,env(safe-area-inset-top))] md:pb-16 lg:max-w-5xl">
-      <PageHeader
-        left={<img src="/favicon.svg" alt="" className="size-9 rounded-xl" />}
-        center={
-          <>
-            <IconButton label={t('prevMonth')} onClick={() => setMonth(shiftMonth(month, -1))} disabled={!firstMonth || month <= firstMonth}>
-              <ChevronLeft size={18} />
-            </IconButton>
-            <h1 className="truncate px-1">{fmtMonth(month, lng)}</h1>
-            <IconButton label={t('nextMonth')} onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= nowMonth}>
-              <ChevronRight size={18} />
-            </IconButton>
-          </>
-        }
-        right={<AvatarLink />}
-      />
-      <div className="-mt-2 flex flex-col items-center gap-3">
-        <TabBar />
-        {month !== nowMonth && (
-          <button onClick={() => setMonth(nowMonth)} className="no-print text-xs text-accent-strong underline">
-            {t('currentMonth')}
+    <PageShell
+      wide
+      title={t('tabBudget')}
+      subtitle={
+        <div className="mt-2 inline-flex items-center rounded-full border border-border bg-surface py-0.5 text-[11.5px] font-semibold uppercase tracking-[0.2em] text-text">
+          <button
+            type="button"
+            onClick={() => setMonth(shiftMonth(month, -1))}
+            disabled={!firstMonth || month <= firstMonth}
+            aria-label={t('prevMonth')}
+            className="grid size-8 place-items-center rounded-full disabled:opacity-30"
+          >
+            <ChevronLeft size={16} />
           </button>
-        )}
-      </div>
-
+          <span className="px-1">{fmtMonth(month, lng)}</span>
+          <button
+            type="button"
+            onClick={() => setMonth(shiftMonth(month, 1))}
+            disabled={month >= nowMonth}
+            aria-label={t('nextMonth')}
+            className="grid size-8 place-items-center rounded-full disabled:opacity-30"
+          >
+            <ChevronRight size={16} />
+          </button>
+          {month !== nowMonth && (
+            <button onClick={() => setMonth(nowMonth)} className="no-print pr-3 normal-case tracking-normal text-accent-strong underline">
+              {t('currentMonth')}
+            </button>
+          )}
+        </div>
+      }
+    >
       {rolled > 0 && month === nowMonth && (
         <p className="no-print flex items-center justify-between gap-3 rounded-2xl bg-accent-soft px-4 py-3 text-sm">
           <span>{t('rolledOver', { count: rolled })}</span>
@@ -193,19 +199,21 @@ export default function Home({ householdId }: { householdId: string }) {
         </div>
       )}
 
-      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-14">
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-12">
         <div className="flex flex-col gap-4 lg:sticky lg:top-6">
           <ScriptTitle>{t('summaryTitle')}</ScriptTitle>
           {loaded && !loadError && (
-            <MonthSummary
-              key={month}
-              householdId={householdId}
-              month={month}
-              totalBudget={totalBudget}
-              totalSpent={totalSpent}
-              totalOver={overList.reduce((s, e) => s + (spentBy[e.id] ?? 0) - e.budget, 0)}
-              overCount={overList.length}
-            />
+            <Card>
+              <MonthSummary
+                key={month}
+                householdId={householdId}
+                month={month}
+                totalBudget={totalBudget}
+                totalSpent={totalSpent}
+                totalOver={overList.reduce((s, e) => s + (spentBy[e.id] ?? 0) - e.budget, 0)}
+                overCount={overList.length}
+              />
+            </Card>
           )}
           {loaded && !loadError && (
             <Tips
@@ -222,47 +230,53 @@ export default function Home({ householdId }: { householdId: string }) {
           <div className="flex items-end justify-between gap-3">
             <ScriptTitle>{t('envelopes')}</ScriptTitle>
             {!groupsMissing && (
-              <button onClick={() => setSheet({ kind: 'group' })} className="no-print mb-1 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-accent-strong">
-                <Plus size={14} /> {t('group')}
+              <button onClick={() => setSheet({ kind: 'group' })} className="no-print mb-2 flex items-center gap-1 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:border-accent">
+                <Plus size={14} /> {t('newGroup')}
               </button>
             )}
           </div>
           {groupsMissing && <p className="text-xs text-muted">{t('errMigrationGroups')}</p>}
           {loaded && !loadError && envelopes.length === 0 && (
-            <p className="text-sm text-muted">{month === nowMonth ? t('noEnvelopes') : t('noEnvelopesPast')}</p>
+            <Card description={month === nowMonth ? t('noEnvelopes') : t('noEnvelopesPast')} />
           )}
 
           {groups.map((g) => {
             const list = envelopes.filter((e) => e.group_id === g.id)
-            return list.length === 0 ? (
-              <EmptyGroup key={g.id} group={g} onAdd={() => setSheet({ kind: 'envelope', groupId: g.id })} onDelete={() => setSheet({ kind: 'deleteGroup', group: g })} />
-            ) : (
-              <GroupSection
-                key={g.id}
-                id={g.id}
-                title={g.name}
-                envelopes={list}
-                spentBy={spentBy}
-                onOpen={open}
-                onRename={() => setSheet({ kind: 'group', group: g })}
-                onDelete={() => setSheet({ kind: 'deleteGroup', group: g })}
-              />
+            return (
+              <Card key={g.id}>
+                {list.length === 0 ? (
+                  <EmptyGroup group={g} onAdd={() => setSheet({ kind: 'envelope', groupId: g.id })} onDelete={() => setSheet({ kind: 'deleteGroup', group: g })} />
+                ) : (
+                  <GroupSection
+                    id={g.id}
+                    title={g.name}
+                    envelopes={list}
+                    spentBy={spentBy}
+                    onOpen={open}
+                    onRename={() => setSheet({ kind: 'group', group: g })}
+                    onDelete={() => setSheet({ kind: 'deleteGroup', group: g })}
+                  />
+                )}
+              </Card>
             )
           })}
-          {ungrouped.length > 0 &&
-            (groups.length > 0 ? (
-              <GroupSection id={UNGROUPED} title={t('noGroup')} envelopes={ungrouped} spentBy={spentBy} onOpen={open} />
-            ) : (
-              <ul className="divide-y divide-dashed divide-muted/30">
-                {ungrouped.map((e) => (
-                  <EnvelopeRow key={e.id} envelope={e} spent={spentBy[e.id] ?? 0} onOpen={() => open(e.id)} />
-                ))}
-              </ul>
-            ))}
+          {ungrouped.length > 0 && (
+            <Card>
+              {groups.length > 0 ? (
+                <GroupSection id={UNGROUPED} title={t('noGroup')} envelopes={ungrouped} spentBy={spentBy} onOpen={open} />
+              ) : (
+                <ul className="-my-2 divide-y divide-dashed divide-muted/30">
+                  {ungrouped.map((e) => (
+                    <EnvelopeRow key={e.id} envelope={e} spent={spentBy[e.id] ?? 0} onOpen={() => open(e.id)} />
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
 
           <button
             onClick={() => setSheet({ kind: 'envelope' })}
-            className="no-print flex items-center justify-center gap-2 rounded-full border border-dashed border-accent py-3 text-sm font-medium text-accent-strong hover:bg-accent-soft/50"
+            className="no-print flex items-center justify-center gap-2 rounded-3xl border border-dashed border-accent py-4 text-sm font-medium text-accent-strong hover:bg-accent-soft/50"
           >
             <Plus size={16} /> {t('newEnvelope')}
           </button>
@@ -270,7 +284,6 @@ export default function Home({ householdId }: { householdId: string }) {
       </div>
 
       {envelopes.length > 0 && <Fab label={t('newExpense')} onClick={() => setSheet({ kind: 'quick' })} />}
-      <BottomNav />
 
       {sheet?.kind === 'quick' && <QuickAddSheet envelopes={envelopes} onClose={() => setSheet(null)} onAdded={onAdded} />}
       {sheet?.kind === 'envelope' && (
@@ -304,7 +317,7 @@ export default function Home({ householdId }: { householdId: string }) {
           </button>
         </Sheet>
       )}
-    </main>
+    </PageShell>
   )
 }
 

@@ -7,15 +7,15 @@ import { useDataVersion } from '../lib/realtime'
 import { childrenOf, milestonesOf, totalOf, type SavingsData, type SavingsEntry, type SavingsEnvelope } from '../lib/savings'
 import { supabase } from '../lib/supabase'
 import { uuid } from '../lib/uuid'
-import AvatarLink from './AvatarLink'
 import ConfirmButton from './ConfirmButton'
 import MilestoneBar from './MilestoneBar'
 import ScriptTitle from './ScriptTitle'
 import Select from './Select'
 import SavingsSheet from './savings/SavingsSheet'
-import { BottomNav } from './TabBar'
 import Field, { SECONDARY } from './ui/Field'
-import PageHeader, { IconButton } from './ui/PageHeader'
+import Card from './ui/Card'
+import { IconButton } from './ui/PageHeader'
+import PageShell from './ui/PageShell'
 import SummaryColumns from './ui/SummaryColumns'
 
 const round = (n: number) => Math.round(n * 100) / 100
@@ -70,41 +70,49 @@ export default function SavingsDetail({
   const backHref = parent ? `#/savings/${parent.id}` : '#/savings'
 
   return (
-    <main className="fade-up mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-5 px-5 pb-36 pt-[max(1.25rem,env(safe-area-inset-top))] md:pb-16 lg:max-w-5xl">
-      <PageHeader
-        left={
-          <IconButton label={parent ? parent.name : t('back')} href={backHref}>
-            <ChevronLeft size={20} />
-          </IconButton>
-        }
-        center={<span className="truncate">{parent ? parent.name : t('tabSavings')}</span>}
-        right={<AvatarLink />}
-      />
-
-      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-14">
-        <div className="flex flex-col gap-5 lg:sticky lg:top-6">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <IconBadge icon={envelope.icon ?? 'piggy'} color={envelope.color} size="lg" />
-            <h1 className="text-2xl font-medium">{envelope.name}</h1>
-            <button onClick={() => setSheet('edit')} className="no-print flex items-center gap-1.5 text-xs text-accent-strong underline">
-              <Pencil size={12} /> {t('renameEdit')}
-            </button>
-          </div>
-
-          <SummaryColumns
-            items={[
-              { label: children.length ? t('totalShort') : t('savedSoFar'), value: money(total), tone: 'var(--accent-strong)' },
-              { label: t('goalShort'), value: goal ? money(goal) : '—', tone: 'var(--chart-2)' },
-              { label: t('leftShort'), value: goal ? money(Math.max(goal - total, 0)) : '—', tone: 'var(--ok)' },
-            ]}
-          />
-          <MilestoneBar balance={total} target={envelope.target} milestones={milestones} format={money} />
-          {children.length > 0 && (
-            <p className={`text-center text-sm ${own < 0 ? 'font-medium text-over' : 'text-muted'}`}>
-              {t('unallocated')}: <span className="font-medium tabular-nums">{money(own)}</span>
-              {own < 0 && ` · ${t('overAllocated')}`}
-            </p>
-          )}
+    <PageShell
+      wide
+      title={envelope.name}
+      left={
+        <IconButton label={parent ? parent.name : t('back')} href={backHref}>
+          <ChevronLeft size={22} />
+        </IconButton>
+      }
+      subtitle={
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+          {parent ? parent.name : t('tabSavings')}
+          {envelope.target ? ` · ${t('goalOf', { amount: money(envelope.target) })}` : ''}
+        </span>
+      }
+      action={
+        <IconButton label={t('renameEdit')} onClick={() => setSheet('edit')}>
+          <Pencil size={19} />
+        </IconButton>
+      }
+    >
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-12">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-6">
+          <Card>
+            <div className="flex flex-col gap-5">
+              <div className="flex justify-center">
+                <IconBadge icon={envelope.icon ?? 'piggy'} color={envelope.color} size="lg" />
+              </div>
+              <SummaryColumns
+                items={[
+                  { label: children.length ? t('totalShort') : t('savedSoFar'), value: money(total), tone: 'var(--accent-strong)' },
+                  { label: t('goalShort'), value: goal ? money(goal) : '—', tone: 'var(--chart-2)' },
+                  { label: t('leftShort'), value: goal ? money(Math.max(goal - total, 0)) : '—', tone: 'var(--ok)' },
+                ]}
+              />
+              <MilestoneBar balance={total} target={envelope.target} milestones={milestones} format={money} />
+              {children.length > 0 && (
+                <p className={`text-center text-sm ${own < 0 ? 'font-medium text-over' : 'text-muted'}`}>
+                  {t('unallocated')}: <span className="font-medium tabular-nums">{money(own)}</span>
+                  {own < 0 && ` · ${t('overAllocated')}`}
+                </p>
+              )}
+            </div>
+          </Card>
 
           <MovementForm envelope={envelope} householdId={householdId} own={own} isPool={children.length > 0} onDone={refresh} />
         </div>
@@ -114,46 +122,49 @@ export default function SavingsDetail({
             <SubEnvelopes data={data} envelope={envelope} householdId={householdId} kids={children} onAdd={() => setSheet('child')} onChanged={refresh} />
           )}
           <Milestones envelope={envelope} householdId={householdId} data={data} onChanged={reload} />
-          <section className="flex flex-col gap-1">
+          <section className="flex flex-col gap-3">
             <ScriptTitle>{t('movements')}</ScriptTitle>
             {entriesError && <p className="text-sm text-over">{entriesError}</p>}
-            {!entriesError && entries.length === 0 && <p className="text-sm text-muted">{t('noMovements')}</p>}
-            <ul className="divide-y divide-dashed divide-muted/30">
-              {entries.map((e) => (
-                <li key={e.id} className="flex items-center gap-3 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px]">{e.note || t('unnamed')}</p>
-                    <p className="text-xs text-muted">
-                      {fmtDate(e.entry_date, lng)}
-                      {e.transfer_id && ` · ${t('tagTransfer')}`}
-                      {e.source_expense_id && ` · ${t('tagRefund')}`}
-                    </p>
-                  </div>
-                  <span className={`text-[15px] font-medium tabular-nums ${e.amount < 0 ? 'text-over' : 'text-ok-ink'}`}>
-                    {e.amount > 0 ? '+' : ''}
-                    {money(e.amount)}
-                  </span>
-                  <ConfirmButton
-                    label={<X size={16} />}
-                    ariaLabel={t('delete')}
-                    confirmLabel={t('confirmDelete')}
-                    className="no-print rounded-full p-1 text-muted opacity-60 hover:text-over hover:opacity-100"
-                    confirmClassName="no-print text-xs font-semibold text-over underline"
-                    onConfirm={async () => {
-                      // Un virement interne est composé de deux écritures: on retire les deux.
-                      const q = supabase.from('savings_entries').delete()
-                      await (e.transfer_id ? q.eq('transfer_id', e.transfer_id) : q.eq('id', e.id))
-                      refresh()
-                    }}
-                  />
-                </li>
-              ))}
-            </ul>
+            {!entriesError && entries.length === 0 && <Card description={t('noMovements')} />}
+            {entries.length > 0 && (
+              <Card>
+                <ul className="-my-2 divide-y divide-dashed divide-muted/30">
+                  {entries.map((e) => (
+                    <li key={e.id} className="flex items-center gap-3 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[15px]">{e.note || t('unnamed')}</p>
+                        <p className="text-xs text-muted">
+                          {fmtDate(e.entry_date, lng)}
+                          {e.transfer_id && ` · ${t('tagTransfer')}`}
+                          {e.source_expense_id && ` · ${t('tagRefund')}`}
+                        </p>
+                      </div>
+                      <span className={`text-[15px] font-medium tabular-nums ${e.amount < 0 ? 'text-over' : 'text-ok-ink'}`}>
+                        {e.amount > 0 ? '+' : ''}
+                        {money(e.amount)}
+                      </span>
+                      <ConfirmButton
+                        label={<X size={16} />}
+                        ariaLabel={t('delete')}
+                        confirmLabel={t('confirmDelete')}
+                        className="no-print rounded-full p-1 text-muted opacity-60 hover:text-over hover:opacity-100"
+                        confirmClassName="no-print text-xs font-semibold text-over underline"
+                        onConfirm={async () => {
+                          // Un virement interne est composé de deux écritures: on retire les deux.
+                          const q = supabase.from('savings_entries').delete()
+                          await (e.transfer_id ? q.eq('transfer_id', e.transfer_id) : q.eq('id', e.id))
+                          refresh()
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
           </section>
         </div>
       </div>
 
-      <BottomNav />
       {sheet === 'edit' && (
         <SavingsSheet
           householdId={householdId}
@@ -179,7 +190,7 @@ export default function SavingsDetail({
           onSaved={reload}
         />
       )}
-    </main>
+    </PageShell>
   )
 }
 
@@ -229,7 +240,7 @@ function MovementForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="no-print flex flex-col gap-3 rounded-3xl bg-surface p-5 shadow-sm">
+    <form onSubmit={submit} noValidate className="no-print flex flex-col gap-3 rounded-3xl border border-border/80 bg-surface p-5 shadow-[0_1px_2px_rgb(26_29_32/0.04)]">
       <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted">{isPool ? t('newMoneyUnallocated') : t('newMovement')}</p>
       <div role="radiogroup" aria-label={t('movementKind')} className="flex gap-2">
         {(['deposit', 'withdraw'] as const).map((k) => (
@@ -288,8 +299,10 @@ function SubEnvelopes({
           <Plus size={14} /> {t('add')}
         </button>
       </div>
-      {kids.length === 0 && <p className="text-sm text-muted">{t('noSubEnvelopes')}</p>}
-      <ul className="divide-y divide-dashed divide-muted/30">
+      {kids.length === 0 && <Card description={t('noSubEnvelopes')} />}
+      {kids.length > 0 && (
+      <Card>
+      <ul className="-my-2 divide-y divide-dashed divide-muted/30">
         {kids.map((c) => {
           const bal = data.own[c.id] ?? 0
           return (
@@ -306,6 +319,8 @@ function SubEnvelopes({
           )
         })}
       </ul>
+      </Card>
+      )}
       {kids.length > 0 && <TransferForm data={data} envelope={envelope} householdId={householdId} kids={kids} onDone={onChanged} />}
     </section>
   )
@@ -358,7 +373,7 @@ function TransferForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="no-print mt-2 flex flex-col gap-3 rounded-3xl bg-surface p-5 shadow-sm">
+    <form onSubmit={submit} noValidate className="no-print mt-2 flex flex-col gap-3 rounded-3xl border border-border/80 bg-surface p-5 shadow-[0_1px_2px_rgb(26_29_32/0.04)]">
       <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted">{t('transferTitle')}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         <Select variant="field" label={t('transferFrom')} value={from} options={options} onChange={setFrom} />

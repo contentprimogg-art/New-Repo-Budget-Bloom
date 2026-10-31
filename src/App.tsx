@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import Auth from './components/Auth'
 import Home from './components/Home'
 import Onboarding from './components/Onboarding'
+import Splash from './components/ui/Splash'
 import ProfilePage from './components/ProfilePage'
 import SavingsPage from './components/SavingsPage'
 import StatsPage from './components/StatsPage'
@@ -56,7 +57,7 @@ export default function App() {
   }, [userId])
 
   if (!isConfigured) return <p className="p-6 text-over">{t('missingConfig')}</p>
-  if (!ready || loadingHousehold) return <p className="p-6 text-muted">{t('loading')}</p>
+  if (!ready || loadingHousehold) return <Splash />
   if (!session) return <Auth />
   if (!householdId) return <Onboarding onDone={setHouseholdId} />
   return (

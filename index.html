@@ -17,7 +17,27 @@
         <feDisplacementMap in="SourceGraphic" in2="noise" scale="7" xChannelSelector="R" yChannelSelector="G" />
       </filter>
     </svg>
-    <div id="root"></div>
+    <!-- Écran de démarrage affiché avant le chargement de l'app (remplacé par React au démarrage). -->
+    <div id="root">
+      <div style="min-height: 100dvh; display: grid; place-items: center; background: #f8f4ed">
+        <img
+          src="/favicon.svg"
+          alt=""
+          width="80"
+          height="80"
+          style="border-radius: 22px; box-shadow: 0 10px 24px -8px rgb(228 106 158 / 0.35); animation: breathe 2.4s ease-in-out infinite"
+        />
+      </div>
+    </div>
+    <style>
+      @keyframes breathe {
+        0%, 100% { transform: scale(1); opacity: 0.92; }
+        50% { transform: scale(1.06); opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #root img { animation: none !important; }
+      }
+    </style>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

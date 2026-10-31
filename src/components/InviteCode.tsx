@@ -28,16 +28,13 @@ export default function InviteCode({ householdId }: { householdId: string }) {
     }
   }
 
+  // Contenu seul: le titre et l'explication sont portés par la carte qui l'entoure.
   return (
-    <section className="no-print flex flex-col gap-1 rounded-3xl bg-accent-soft p-4 text-sm">
-      <p className="font-medium">{t('inviteTitle')}</p>
-      <p className="text-muted">{t('inviteHint')}</p>
-      <div className="mt-1 flex items-center gap-3">
-        <code className="rounded-xl bg-surface px-3 py-1.5 text-base font-semibold tracking-widest">{code}</code>
-        <button onClick={() => void copy()} className="text-accent-strong underline">
-          {copied ? t('copied') : t('copy')}
-        </button>
-      </div>
-    </section>
+    <div className="no-print flex items-center gap-3">
+      <code className="rounded-2xl bg-accent-soft px-4 py-2 text-base font-semibold tracking-[0.2em] text-accent-strong">{code}</code>
+      <button onClick={() => void copy()} className="rounded-full border border-border px-4 py-2 text-sm hover:border-accent">
+        {copied ? t('copied') : t('copy')}
+      </button>
+    </div>
   )
 }

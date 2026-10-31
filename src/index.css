@@ -158,6 +158,60 @@ button[role='combobox']:not(:disabled):active {
   filter: url(#watercolor);
 }
 
+/* Emojis: police couleur du système (sur iPhone, ce sont les emojis d'iOS). */
+.emoji {
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  line-height: 1;
+}
+
+/* Curseurs du sélecteur de couleur: piste en dégradé arrondie, pastille blanche cerclée. */
+.range-pretty {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 14px;
+  border-radius: 9999px;
+  border: 0;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
+  cursor: pointer;
+}
+.range-pretty:focus {
+  box-shadow: 0 0 0 2px var(--accent-strong);
+}
+.range-pretty::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid var(--text);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.18);
+}
+.range-pretty::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid var(--text);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.18);
+}
+
+/* Écran de démarrage: le logo « respire » doucement. */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+.breathe {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -221,7 +275,8 @@ button[role='combobox']:not(:disabled):active {
 @media (prefers-reduced-motion: reduce) {
   .fade-up,
   .sheet-in,
-  .hero-gradient {
+  .hero-gradient,
+  .breathe {
     animation: none;
   }
   button {

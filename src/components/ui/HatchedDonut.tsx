@@ -116,7 +116,15 @@ export default function HatchedDonut({
             return (
               <g key={s.key} aria-hidden opacity={active === null || active === i ? 1 : 0.35}>
                 <circle cx={bx} cy={by} r={11} style={{ fill: s.color }} />
-                {Glyph && <Glyph x={bx - 6.5} y={by - 6.5} width={13} height={13} color="#fff" strokeWidth={2.2} />}
+                {Glyph ? (
+                  <Glyph x={bx - 6.5} y={by - 6.5} width={13} height={13} color="#fff" strokeWidth={2.2} />
+                ) : (
+                  s.icon && (
+                    <text x={bx} y={by} dy="0.35em" textAnchor="middle" fontSize={12} className="emoji">
+                      {s.icon}
+                    </text>
+                  )
+                )}
                 <text x={bx} y={by + 23} textAnchor="middle" fontSize={10} style={{ fill: 'var(--muted)' }}>
                   {Math.round(g.share * 100)}%
                 </text>

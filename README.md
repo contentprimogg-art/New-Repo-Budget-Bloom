@@ -39,7 +39,8 @@ Le modèle d'e-mail de confirmation est dans `supabase/email-templates/` (à col
 | `npm run dev` | serveur de développement |
 | `npm run build` | vérification des types + build de production (`dist/`) |
 | `npm run preview` | prévisualiser le build |
-| `node scripts/make-icons.mjs` | régénérer les icônes PNG depuis `public/favicon.svg` |
+| `node scripts/make-icons.mjs` | régénérer les icônes PNG depuis `branding/` |
+| `node scripts/build-emojis.mjs` | régénérer le catalogue d'emojis (`src/data/emojis.json`) |
 
 ## Mise en ligne (HTTPS, nécessaire pour installer la PWA sur iPhone)
 

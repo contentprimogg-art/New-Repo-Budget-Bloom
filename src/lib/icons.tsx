@@ -100,12 +100,15 @@ const LEGACY: Record<string, string> = {
 export const badgeColor = (c: string | null | undefined) => (c ? (LEGACY[c.toUpperCase()] ?? c) : 'var(--accent-strong)')
 
 const SIZES = {
-  sm: { box: 'size-8', icon: 16, emoji: 'text-sm' },
-  md: { box: 'size-10', icon: 19, emoji: 'text-base' },
-  lg: { box: 'size-14', icon: 26, emoji: 'text-2xl' },
+  sm: { box: 'size-8', icon: 16, emoji: 'text-base' },
+  md: { box: 'size-10', icon: 19, emoji: 'text-xl' },
+  lg: { box: 'size-14', icon: 26, emoji: 'text-3xl' },
 }
 
-/** Pastille ronde colorée avec une icône blanche (ou un ancien emoji). */
+/** Vrai si l'icône est un emoji (et non une icône au trait). */
+export const isEmoji = (icon: string | null | undefined): icon is string => !!icon && !ICONS[icon]
+
+/** Pastille ronde: icône au trait blanche sur fond coloré, ou emoji (police du système) sur fond doux. */
 export function IconBadge({
   icon,
   color,
@@ -125,7 +128,7 @@ export function IconBadge({
       className={`grid shrink-0 place-items-center rounded-full text-white ${s.box} ${className}`}
       style={{ background: badgeColor(color) }}
     >
-      {Glyph ? <Glyph size={s.icon} strokeWidth={2} /> : <span className={s.emoji}>{icon}</span>}
+      {Glyph ? <Glyph size={s.icon} strokeWidth={2} /> : <span className={`emoji ${s.emoji}`}>{icon}</span>}
     </span>
   )
 }
@@ -136,7 +139,7 @@ export function IconGlyph({ icon, color, size = 26 }: { icon: string | null | un
   return Glyph ? (
     <Glyph aria-hidden size={size} strokeWidth={1.8} style={{ color: badgeColor(color) }} />
   ) : (
-    <span aria-hidden style={{ fontSize: size * 0.9 }}>
+    <span aria-hidden className="emoji" style={{ fontSize: size * 0.95 }}>
       {icon}
     </span>
   )

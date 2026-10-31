@@ -19,16 +19,14 @@ import { IconBadge, badgeColor, colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
 import type { Tip } from '../lib/tips'
 import GroupedBars from './GroupedBars'
-import AvatarLink from './AvatarLink'
 import Select from './Select'
 import ScriptTitle from './ScriptTitle'
-import TabBar, { BottomNav } from './TabBar'
 import HatchedDonut from './ui/HatchedDonut'
-import PageHeader from './ui/PageHeader'
+import PageShell from './ui/PageShell'
 import Tips from './Tips'
 
 const RANGES = [3, 6, 12] as const
-const card = 'rounded-3xl bg-surface p-5 shadow-sm'
+const card = 'rounded-3xl border border-border/80 bg-surface p-5 shadow-[0_1px_2px_rgb(26_29_32/0.04)]'
 const chip = (on: boolean) =>
   `flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${
     on ? 'border-accent bg-surface text-accent-strong' : 'border-transparent text-muted'
@@ -171,12 +169,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
   const rangeLabel = months.length ? `${fmtMonth(months[0], lng)} → ${fmtMonth(months[months.length - 1], lng)}` : ''
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-6 px-5 pb-36 pt-[max(1.25rem,env(safe-area-inset-top))] md:max-w-3xl md:pb-16 xl:max-w-5xl">
-      <PageHeader center={t('tabStats')} right={<AvatarLink />} />
-      <div className="no-print -mt-3 flex justify-center">
-        <TabBar />
-      </div>
-
+    <PageShell wide title={t('tabStats')} subtitle={rangeLabel}>
       <div className="hidden print:block">
         <h1 className="text-2xl font-semibold">Budget Bloom — {t('tabStats')}</h1>
         <p className="text-sm text-muted">{rangeLabel}</p>
@@ -260,7 +253,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
                   </>
                 }
               />
-              <ul className="divide-y divide-dashed divide-muted/30">
+              <ul className={`${card} divide-y divide-dashed divide-muted/30 py-2`}>
                 {breakdown.map((b) => (
                   <li key={b.key} className="flex items-center gap-3 py-3">
                     <IconBadge icon={b.icon} color={b.rawColor} size="sm" />
@@ -439,7 +432,6 @@ export default function StatsPage({ householdId }: { householdId: string }) {
           )}
         </>
       )}
-      <BottomNav />
-    </main>
+    </PageShell>
   )
 }
