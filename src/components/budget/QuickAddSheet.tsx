@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { mutate } from '../../lib/expenses'
-import { currencySymbol, defaultDateFor, parseAmount } from '../../lib/format'
+import { CURRENCIES, defaultDateFor, fmtMoney, getCurrency, parseAmount } from '../../lib/format'
+import { fmtRate, getRate, roundMoney } from '../../lib/fx'
 import { IconGlyph } from '../../lib/icons'
 import { FREQUENCIES, makeRecurring, type Frequency } from '../../lib/recurring'
 import type { Envelope } from '../../lib/types'
@@ -32,19 +33,47 @@ export default function QuickAddSheet({
   const [repeat, setRepeat] = useState<'none' | `${Frequency}`>('none')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Dépense dans une autre devise (voyage…): convertie dans la devise du foyer au taux du jour, modifiable.
+  const home = getCurrency()
+  const [currency, setCurrency] = useState(home)
+  const [rate, setRate] = useState('')
+  const [rateState, setRateState] = useState<'idle' | 'looking' | 'missing'>('idle')
+  const foreign = currency !== home
+
+  useEffect(() => {
+    if (!foreign) return
+    let alive = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRateState('looking')
+    setRate('')
+    void getRate(currency, home).then((r) => {
+      if (!alive) return
+      setRateState(r ? 'idle' : 'missing')
+      if (r) setRate(fmtRate(r.rate, i18n.language))
+    })
+    return () => {
+      alive = false
+    }
+  }, [currency, home, foreign, i18n.language])
+
+  const typed = parseAmount(amount)
+  const rateValue = parseAmount(rate)
+  const converted = foreign && typed > 0 && rateValue > 0 ? roundMoney(typed * rateValue) : null
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (busy || !envelope) return
-    const value = Math.round(parseAmount(amount) * 100) / 100
+    const value = roundMoney(typed)
     if (!(value > 0)) return setError(t('errAmount'))
+    if (foreign && !(rateValue > 0)) return setError(t('errRate'))
     const row = {
       id: uuid(),
       household_id: envelope.household_id,
       envelope_id: envelope.id,
-      amount: value,
+      amount: foreign ? Math.max(roundMoney(value * rateValue), 0.01) : value,
       note: note.trim() || null,
       spent_on: date || defaultDateFor(envelope.month),
+      ...(foreign ? { original_amount: value, original_currency: currency } : {}),
     }
     // Une dépense récurrente crée aussi son modèle côté serveur: elle demande donc le réseau.
     if (repeat !== 'none' && !navigator.onLine) return setError(t('repeatNeedsNetwork'))
@@ -58,7 +87,7 @@ export default function QuickAddSheet({
       }
     }
     setBusy(false)
-    if (result.error) return setError(`${t('errSave')} (${result.error})`)
+    if (result.error) return setError(/original_/.test(result.error) ? t('errMigration0009') : `${t('errSave')} (${result.error})`)
     onAdded(result.queued)
     onClose()
   }
@@ -80,8 +109,38 @@ export default function QuickAddSheet({
               onChange={(e) => setAmount(e.target.value)}
               className="field-line w-44 text-center text-4xl font-medium tabular-nums"
             />
-            <span className="text-2xl text-muted">{currencySymbol(i18n.language)}</span>
+            <div className="w-24 shrink-0">
+              <Select
+                label={t('currency')}
+                value={currency}
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+                onChange={setCurrency}
+                className="text-lg text-muted"
+              />
+            </div>
           </div>
+          {foreign && (
+            <div className="-mt-2 flex flex-col items-center gap-1 text-sm">
+              <label className="flex items-baseline gap-1.5 text-muted">
+                <span>1 {currency} =</span>
+                <input
+                  inputMode="decimal"
+                  value={rate}
+                  onChange={(e) => setRate(e.target.value)}
+                  placeholder={rateState === 'looking' ? '…' : '0,00'}
+                  aria-label={t('exchangeRate')}
+                  className="field-line w-24 text-center tabular-nums"
+                />
+                <span>{home}</span>
+              </label>
+              {rateState === 'missing' && <p className="text-xs text-muted">{t('rateMissing')}</p>}
+              {converted !== null && (
+                <p className="font-medium">
+                  ≈ {fmtMoney(converted, i18n.language)} <span className="font-normal text-muted">{t('convertedNote')}</span>
+                </p>
+              )}
+            </div>
+          )}
 
           <div role="radiogroup" aria-label={t('chooseEnvelope')} className="grid max-h-56 grid-cols-4 gap-1 overflow-y-auto">
             {envelopes.map((env) => {

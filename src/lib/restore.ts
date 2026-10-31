@@ -21,7 +21,7 @@ const TABLES: { name: string; columns: string[]; conflict: string }[] = [
   },
   {
     name: 'expenses',
-    columns: ['id', 'envelope_id', 'amount', 'note', 'spent_on', 'status', 'settled_on', 'recurring_id', 'created_at'],
+    columns: ['id', 'envelope_id', 'amount', 'note', 'spent_on', 'status', 'settled_on', 'recurring_id', 'original_amount', 'original_currency', 'created_at'],
     conflict: 'id',
   },
   {

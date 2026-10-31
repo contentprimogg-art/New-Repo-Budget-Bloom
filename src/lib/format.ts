@@ -5,17 +5,18 @@ export const setCurrency = (code: string) => {
 }
 export const getCurrency = () => currency
 
-export const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'MAD', 'XOF', 'XAF', 'TND', 'DZD', 'BRL', 'MXN', 'CNY', 'INR', 'TRY'] as const
+export const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'MAD', 'XOF', 'XAF', 'TND', 'DZD', 'BRL', 'MXN', 'CNY', 'INR', 'TRY', 'HKD', 'SGD', 'THB', 'ZAR', 'NZD', 'HUF', 'RON', 'KRW', 'ILS', 'IDR', 'PHP', 'MYR', 'ISK'] as const
 
-export const fmtMoney = (n: number, lng: string) => new Intl.NumberFormat(lng, { style: 'currency', currency }).format(n)
+/** Montant dans la devise du foyer, ou dans une autre devise (montant d'origine d'une dépense). */
+export const fmtMoney = (n: number, lng: string, code: string = currency) => new Intl.NumberFormat(lng, { style: 'currency', currency: code }).format(n)
 
 /** Montant arrondi sans décimales (étiquettes courtes). */
 export const fmtMoneyShort = (n: number, lng: string) =>
   new Intl.NumberFormat(lng, { style: 'currency', currency, maximumFractionDigits: 0 }).format(n)
 
 /** Symbole de la devise (€, $, £, CHF…). */
-export const currencySymbol = (lng: string) =>
-  new Intl.NumberFormat(lng, { style: 'currency', currency }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? currency
+export const currencySymbol = (lng: string, code: string = currency) =>
+  new Intl.NumberFormat(lng, { style: 'currency', currency: code }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? code
 
 /** Nom de la devise dans la langue (« euro », « dollar des États-Unis »…). */
 export const currencyName = (code: string, lng: string) => {

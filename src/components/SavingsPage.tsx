@@ -1,3 +1,4 @@
+import { Search, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtMoney } from '../lib/format'
@@ -7,7 +8,9 @@ import { childrenOf, milestonesOf, totalOf, useSavings } from '../lib/savings'
 import MilestoneBar from './MilestoneBar'
 import SavingsDetail from './SavingsDetail'
 import ScriptTitle from './ScriptTitle'
+import SearchSheet from './budget/SearchSheet'
 import SavingsSheet from './savings/SavingsSheet'
+import { IconButton } from './ui/PageHeader'
 import BloomButton from './ui/BloomButton'
 import Card from './ui/Card'
 import PageShell from './ui/PageShell'
@@ -21,6 +24,7 @@ export default function SavingsPage({ householdId }: { householdId: string }) {
   const hash = useHash()
   const { data, error, loaded, reload } = useSavings(householdId)
   const [creating, setCreating] = useState(false)
+  const [searching, setSearching] = useState(false)
 
   const selectedId = hash.startsWith(PREFIX) ? hash.slice(PREFIX.length) : null
   const selected = data && selectedId ? data.envelopes.find((e) => e.id === selectedId) : undefined
@@ -33,7 +37,20 @@ export default function SavingsPage({ householdId }: { householdId: string }) {
   const goals = top.reduce((sum, e) => sum + (e.target ?? 0), 0)
 
   return (
-    <PageShell title={t('tabSavings')} subtitle={data ? t('totalSavedLine', { amount: money(grandTotal) }) : undefined}>
+    <PageShell
+      title={t('tabSavings')}
+      subtitle={data ? t('totalSavedLine', { amount: money(grandTotal) }) : undefined}
+      action={
+        <span className="flex items-center">
+          <IconButton label={t('search')} onClick={() => setSearching(true)}>
+            <Search size={21} />
+          </IconButton>
+          <IconButton label={t('settings')} href="#/profile">
+            <Settings size={21} />
+          </IconButton>
+        </span>
+      }
+    >
       {error && (
         <div role="alert" className="rounded-2xl bg-over/10 px-4 py-3 text-sm text-over">
           <p>{/savings_/.test(error) ? t('errMigrationSavings') : t('errLoad')}</p>
@@ -97,6 +114,19 @@ export default function SavingsPage({ householdId }: { householdId: string }) {
           sort={top.length}
           onClose={() => setCreating(false)}
           onSaved={reload}
+        />
+      )}
+      {searching && (
+        <SearchSheet
+          householdId={householdId}
+          initialKind="savings"
+          onClose={() => setSearching(false)}
+          onOpen={(target) => {
+            setSearching(false)
+            if (target.kind === 'savings') window.location.hash = `${PREFIX}${target.id}`
+            else if (target.kind === 'envelope') window.location.hash = `#/envelope/${target.id}@${target.month}`
+            else window.location.hash = '#/'
+          }}
         />
       )}
     </PageShell>

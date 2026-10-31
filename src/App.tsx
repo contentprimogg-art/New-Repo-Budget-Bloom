@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Auth from './components/Auth'
 import Home from './components/Home'
@@ -10,6 +10,7 @@ import SavingsPage from './components/SavingsPage'
 import StatsPage from './components/StatsPage'
 import { ProfileProvider } from './lib/profile'
 import { HouseholdProvider } from './lib/household'
+import { HouseholdsContext, loadHouseholds, storeActive, storedActive, type HouseholdRef } from './lib/households'
 import { DataProvider } from './lib/realtime'
 import { pageOf, useHash } from './lib/route'
 import { isConfigured, supabase } from './lib/supabase'
@@ -26,6 +27,7 @@ export default function App() {
   const { t } = useTranslation()
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
+  const [households, setHouseholds] = useState<HouseholdRef[]>([])
   const [householdId, setHouseholdId] = useState<string | null>(null)
   const [loadingHousehold, setLoadingHousehold] = useState(false)
 
@@ -40,34 +42,62 @@ export default function App() {
   }, [])
 
   const userId = session?.user.id
+
+  // Foyers dont on est membre; le foyer affiché est celui choisi sur cet appareil (sinon le premier).
+  const refresh = useCallback(
+    async (prefer?: string) => {
+      if (!userId) return
+      const { list } = await loadHouseholds(userId)
+      setHouseholds(list)
+      const wanted = prefer ?? storedActive()
+      const active = list.find((h) => h.id === wanted)?.id ?? list[0]?.id ?? null
+      storeActive(active)
+      setHouseholdId(active)
+    },
+    [userId],
+  )
+
   useEffect(() => {
     if (!userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHouseholdId(null)
+      setHouseholds([])
       return
     }
     setLoadingHousehold(true)
-    void supabase
-      .from('household_members')
-      .select('household_id')
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        setHouseholdId(data?.household_id ?? null)
-        setLoadingHousehold(false)
-      })
-  }, [userId])
+    void refresh().then(() => setLoadingHousehold(false))
+  }, [userId, refresh])
+
+  const switcher = useMemo(
+    () =>
+      householdId
+        ? {
+            list: households,
+            activeId: householdId,
+            switchTo: async (id: string) => {
+              window.location.hash = ''
+              await refresh(id)
+            },
+            refresh: () => refresh(householdId),
+          }
+        : null,
+    [households, householdId, refresh],
+  )
 
   if (!isConfigured) return <p className="p-6 text-over">{t('missingConfig')}</p>
   if (!ready || loadingHousehold) return <Splash />
   if (!session) return <Auth />
-  if (!householdId) return <Onboarding onDone={setHouseholdId} />
+  if (!householdId || !switcher) return <Onboarding onDone={(id) => void refresh(id)} />
   return (
     <ProfileProvider session={session}>
-      <DataProvider householdId={householdId}>
-        <HouseholdProvider householdId={householdId} userId={session.user.id}>
-          <Pages householdId={householdId} />
-        </HouseholdProvider>
-      </DataProvider>
+      <HouseholdsContext.Provider value={switcher}>
+        {/* Changer de foyer remonte tout l'arbre: aucune donnée de l'ancien foyer ne subsiste. */}
+        <DataProvider key={householdId} householdId={householdId}>
+          <HouseholdProvider householdId={householdId} userId={session.user.id}>
+            <Pages householdId={householdId} />
+          </HouseholdProvider>
+        </DataProvider>
+      </HouseholdsContext.Provider>
     </ProfileProvider>
   )
 }

@@ -410,6 +410,8 @@ export function TransactionRow({
   const settledNote = expense.status === 'refunded' ? t('refundedFreed') : expense.status === 'kept' ? t('refundedKept') : null
   const day = new Date(`${expense.spent_on}T12:00:00`)
   const money = fmtMoney(expense.amount, lng)
+  // Dépense saisie dans une autre devise: montant d'origine en petit sous le montant converti.
+  const original = expense.original_currency && expense.original_amount != null ? fmtMoney(Number(expense.original_amount), lng, expense.original_currency) : null
   const struck = settled ? 'text-muted line-through' : ''
   const pill = 'rounded-full border border-accent/60 px-3 py-1 text-accent-strong'
 
@@ -499,6 +501,7 @@ export function TransactionRow({
           <span className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted">{fmtDate(expense.spent_on, lng)}</span>
           <span className={`mt-1 line-clamp-2 min-h-10 text-sm ${struck} ${expense.note ? '' : 'text-muted'}`}>{expense.note || t('unnamed')}</span>
           <span className={`mt-1 text-lg font-medium tabular-nums ${struck}`}>{money}</span>
+          {original && <span className="text-[11px] text-muted tabular-nums">{original}</span>}
           {status}
         </button>
         {open && details}
@@ -524,7 +527,10 @@ export function TransactionRow({
           {status}
         </span>
         {household?.shared && author && <MemberAvatar member={author} size={20} />}
-        <span className={`shrink-0 text-[15px] font-medium tabular-nums ${struck}`}>{money}</span>
+        <span className="flex shrink-0 flex-col items-end">
+          <span className={`text-[15px] font-medium tabular-nums ${struck}`}>{money}</span>
+          {original && <span className="text-[11px] text-muted tabular-nums">{original}</span>}
+        </span>
       </button>
       {open && details}
     </li>

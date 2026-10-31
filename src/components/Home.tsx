@@ -16,6 +16,7 @@ import IncomeList from './budget/IncomeList'
 import IncomeSheet from './budget/IncomeSheet'
 import QuickAddSheet from './budget/QuickAddSheet'
 import SearchSheet from './budget/SearchSheet'
+import { HouseholdChip } from './HouseholdSwitch'
 import EnvelopeRow from './budget/EnvelopeRow'
 import EnvelopeDetail from './EnvelopeDetail'
 import MonthSummary from './MonthSummary'
@@ -195,6 +196,8 @@ export default function Home({ householdId }: { householdId: string }) {
       }
       fab={envelopes.length > 0 ? <Fab label={t('newExpense')} onClick={() => setSheet({ kind: 'quick' })} /> : undefined}
       subtitle={
+        <>
+        <HouseholdChip />
         <div className="mt-2 inline-flex items-center rounded-full border border-border bg-surface py-0.5 text-[11.5px] font-semibold uppercase tracking-[0.2em] text-text">
           <button
             type="button"
@@ -221,6 +224,7 @@ export default function Home({ householdId }: { householdId: string }) {
             </button>
           )}
         </div>
+        </>
       }
     >
       {rolled > 0 && month === nowMonth && (
@@ -366,9 +370,17 @@ export default function Home({ householdId }: { householdId: string }) {
         <SearchSheet
           householdId={householdId}
           onClose={() => setSheet(null)}
-          onOpen={(envelopeId, m) => {
-            setSheet(null)
-            open(envelopeId, m)
+          onOpen={(target) => {
+            if (target.kind === 'envelope') {
+              setSheet(null)
+              open(target.id, target.month)
+            } else if (target.kind === 'income') {
+              // Revenu: on se place sur son mois et on ouvre sa fiche.
+              setMonth(target.income.month)
+              setSheet({ kind: 'income', income: target.income })
+            } else {
+              window.location.hash = `#/savings/${target.id}`
+            }
           }}
         />
       )}

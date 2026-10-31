@@ -12,12 +12,17 @@ export interface Member {
 
 interface HouseholdValue {
   id: string
+  name: string
   currency: string
   members: Member[]
   memberById: Record<string, Member>
   /** Vrai s'il y a plusieurs personnes dans le foyer (sinon inutile d'afficher qui a fait quoi). */
   shared: boolean
+  /** Change seulement la devise affichée (les montants restent tels quels). */
   changeCurrency: (code: string) => Promise<string | null>
+  /** Change la devise et convertit tous les montants du foyer avec ce taux (migration 0009). */
+  convertCurrency: (code: string, rate: number) => Promise<string | null>
+  rename: (name: string) => Promise<string | null>
 }
 
 const HouseholdContext = createContext<HouseholdValue | null>(null)
@@ -26,6 +31,7 @@ const HouseholdContext = createContext<HouseholdValue | null>(null)
 export function HouseholdProvider({ householdId, userId, children }: { householdId: string; userId: string; children: React.ReactNode }) {
   const version = useDataVersion()
   const [currency, setCurrency] = useState('EUR')
+  const [name, setName] = useState('')
   const [members, setMembers] = useState<Member[]>([])
 
   const load = useCallback(async () => {
@@ -34,6 +40,7 @@ export function HouseholdProvider({ householdId, userId, children }: { household
       supabase.from('household_members').select('user_id').eq('household_id', householdId),
     ])
     if (house.data?.currency) setCurrency(house.data.currency as string)
+    if (house.data?.name) setName(house.data.name as string)
     const ids = (rows.data ?? []).map((r) => r.user_id as string)
     // Les profils n'existent qu'après la migration 0008: sans eux, on garde des pastilles neutres.
     const profiles = ids.length ? await supabase.from('profiles').select('id, first_name, last_name, avatar_path').in('id', ids) : null
@@ -70,19 +77,42 @@ export function HouseholdProvider({ householdId, userId, children }: { household
     [householdId],
   )
 
+  const convertCurrency = useCallback(
+    async (code: string, rate: number) => {
+      const { error } = await supabase.rpc('convert_household', { h: householdId, rate, new_currency: code })
+      if (error) return error.message
+      setCurrency(code)
+      return null
+    },
+    [householdId],
+  )
+
+  const rename = useCallback(
+    async (next: string) => {
+      const { error } = await supabase.from('households').update({ name: next }).eq('id', householdId)
+      if (error) return error.message
+      setName(next)
+      return null
+    },
+    [householdId],
+  )
+
   // Les montants sont formatés partout avec la devise du foyer.
   setFormatCurrency(currency)
 
   const value = useMemo<HouseholdValue>(
     () => ({
       id: householdId,
+      name,
       currency,
       members,
       memberById: Object.fromEntries(members.map((m) => [m.id, m])),
       shared: members.length > 1,
       changeCurrency,
+      convertCurrency,
+      rename,
     }),
-    [householdId, currency, members, changeCurrency],
+    [householdId, name, currency, members, changeCurrency, convertCurrency, rename],
   )
 
   // Changer de devise remonte les écrans pour que tous les montants se réaffichent.

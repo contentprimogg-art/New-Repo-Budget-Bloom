@@ -40,6 +40,9 @@ export interface Expense {
   settled_on: string | null
   created_by?: string | null
   recurring_id?: string | null
+  /** Montant et devise de saisie quand la dépense a été faite dans une autre devise (migration 0009). */
+  original_amount?: number | null
+  original_currency?: string | null
   /** Vrai pour une dépense saisie hors-ligne, pas encore envoyée. */
   pending?: boolean
 }

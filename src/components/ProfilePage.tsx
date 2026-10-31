@@ -24,6 +24,7 @@ import {
 import Avatar from './Avatar'
 import ConfirmButton from './ConfirmButton'
 import HouseholdCard from './HouseholdCard'
+import HouseholdsCard from './HouseholdSwitch'
 import LanguageSwitch from './LanguageSwitch'
 import Card from './ui/Card'
 import ColorSheet from './ui/ColorSheet'
@@ -241,6 +242,7 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
       <Card title={t('language')} description={t('languageHint')} action={<LanguageSwitch full />} />
 
       <HouseholdCard userId={userId} />
+      <HouseholdsCard />
 
       <Card title={t('data')} description={t('dataHint')}>
         <div className="flex flex-wrap gap-3">
