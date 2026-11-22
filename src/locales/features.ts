@@ -1,6 +1,11 @@
 // Textes des écrans Épargne, Conseils et Bilan (fusionnés dans i18n.ts).
 export const features = {
   fr: {
+    fullBackupCsv: 'Sauvegarde CSV',
+    backupCsvDone: "Sauvegarde CSV téléchargée. Vous pouvez la consulter dans un tableur, mais ne l'enregistrez pas depuis celui-ci : le fichier ne serait plus restaurable.",
+    errCsvNotBackup: "Ce CSV n'est pas une sauvegarde complète. Le CSV du Bilan sert à consulter vos dépenses : utilisez « Sauvegarde CSV » dans le profil.",
+    errCsvModified: "Ce fichier est incomplet ou a été modifié : rien n'a été importé. Utilisez le fichier d'origine.",
+    errCsvLine: "Valeur invalide à la ligne {{line}} (colonne {{column}}) : rien n'a été importé. Le fichier a peut-être été enregistré depuis un tableur.",
     whatsNew: 'Nouveautés',
     versionLabel: 'Version {{version}}',
     previousVersions: 'Versions précédentes',
@@ -406,6 +411,11 @@ export const features = {
     viewTableData: 'Voir les données en tableau',
   },
   en: {
+    fullBackupCsv: 'CSV backup',
+    backupCsvDone: 'CSV backup downloaded. You can view it in a spreadsheet, but do not save it from there: it could no longer be restored.',
+    errCsvNotBackup: 'This CSV is not a full backup. The Reports CSV is for viewing your expenses: use “CSV backup” in your profile.',
+    errCsvModified: 'This file is incomplete or was modified: nothing was imported. Use the original file.',
+    errCsvLine: 'Invalid value on line {{line}} (column {{column}}): nothing was imported. The file may have been saved from a spreadsheet.',
     whatsNew: "What's new",
     versionLabel: 'Version {{version}}',
     previousVersions: 'Previous versions',

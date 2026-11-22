@@ -8,6 +8,7 @@ import { todayIso } from '../lib/format'
 import { useProfile } from '../lib/profile'
 import { parseBackup, restoreBackup, type Backup } from '../lib/restore'
 import { signOut } from '../lib/session'
+import { backupToCsv, parseCsvBackup } from '../lib/csvBackup'
 import { buildBackup } from '../lib/stats'
 import { supabase } from '../lib/supabase'
 import {
@@ -126,11 +127,26 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
     done(t('backupDone'))
   }
 
+  async function downloadCsvBackup() {
+    const r = await buildBackup(householdId)
+    if (r.error || !r.json) return failed(`${t('errGeneric')} (${r.error})`)
+    downloadFile(`budget-bloom-sauvegarde_${todayIso()}.csv`, 'text/csv', backupToCsv(JSON.parse(r.json)))
+    done(t('backupCsvDone'))
+  }
+
   async function onPickBackup(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    const parsed = parseBackup(await file.text())
+    const text = await file.text()
+    let parsed: Backup | null
+    if (/\.csv$/i.test(file.name)) {
+      const result = parseCsvBackup(text)
+      if ('errorKey' in result) return failed(t(result.errorKey, result.params))
+      parsed = result.backup
+    } else {
+      parsed = parseBackup(text)
+    }
     if (!parsed) return failed(t('errBadBackup'))
     setError(null)
     setBackup(parsed)
@@ -261,7 +277,10 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
           <button onClick={() => void downloadBackup()} className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2 text-sm hover:border-accent">
             <Download size={16} /> {t('fullBackup')}
           </button>
-          <input ref={backupInput} type="file" accept="application/json,.json" onChange={onPickBackup} className="hidden" />
+          <button onClick={() => void downloadCsvBackup()} className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2 text-sm hover:border-accent">
+            <Download size={16} /> {t('fullBackupCsv')}
+          </button>
+          <input ref={backupInput} type="file" accept="application/json,.json,text/csv,.csv" onChange={onPickBackup} className="hidden" />
           <button onClick={() => backupInput.current?.click()} className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2 text-sm hover:border-accent">
             <Upload size={16} /> {t('restoreBackup')}
           </button>

@@ -167,7 +167,8 @@ export function weeklyMatrix(month: string, envs: StatEnvelope[]): WeeklyMatrix 
 
 // ---- Exports ----
 
-const csvCell = (v: string) => `"${v.replace(/"/g, '""')}"`
+// Un tableur exécuterait un texte commençant par ces signes: on le neutralise.
+const csvCell = (v: string) => `"${(/^[=+\-@\t\r]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"`
 
 /** CSV pour Excel en français: séparateur « ; », virgule décimale, BOM UTF-8. */
 export function buildCsv(envs: StatEnvelope[], statusLabel: Record<ExpenseStatus, string>, headers: string[]): string {

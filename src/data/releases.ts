@@ -25,6 +25,36 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.6',
+    date: '2026-11-22',
+    fr: {
+      title: 'Une sauvegarde de plus',
+      intro: 'Gardez une copie complète de vos données dans un fichier simple.',
+      sections: [
+        {
+          title: 'Ce qui est nouveau',
+          items: [
+            { strong: 'Sauvegarde en CSV', text: 'téléchargez toutes vos données dans un fichier lisible par un tableur.' },
+            { strong: 'Restauration sans doublon', text: 'réimportez ce fichier depuis votre profil, le reste de vos données est conservé.' },
+          ],
+        },
+      ],
+    },
+    en: {
+      title: 'One more backup',
+      intro: 'Keep a full copy of your data in a simple file.',
+      sections: [
+        {
+          title: 'New',
+          items: [
+            { strong: 'CSV backup', text: 'download all your data in a file any spreadsheet can read.' },
+            { strong: 'Restore without duplicates', text: 'import this file again from your profile; the rest of your data is kept.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
     version: '1.5',
     date: '2026-11-22',
     fr: {
