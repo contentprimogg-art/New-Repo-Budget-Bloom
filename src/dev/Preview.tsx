@@ -1,4 +1,5 @@
 import CompanionPreview from './CompanionPreview'
+import EnvelopeTable from '../components/EnvelopeTable'
 import SearchSheet from '../components/budget/SearchSheet'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
@@ -66,6 +67,12 @@ export default function Preview() {
   const totalSpent = ENVS.reduce((s, e) => s + SPENT[e.id], 0)
 
   if (hash.includes('splash')) return <Splash />
+  if (hash.includes('table'))
+    return (
+      <PageShell title="Tableau">
+        <EnvelopeTable envelope={ENVS[0]} expenses={[{ ...EXPENSES[0], amount: 22.75, original_amount: 25, original_currency: 'USD' }, ...EXPENSES.slice(1)]} onChanged={() => {}} />
+      </PageShell>
+    )
   if (hash.includes('companion')) return <CompanionPreview />
 
   return (

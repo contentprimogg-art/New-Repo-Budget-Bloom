@@ -59,8 +59,8 @@ export default function HouseholdCard({ userId }: { userId: string }) {
             <li key={m.id} className="flex items-center gap-3">
               <MemberAvatar member={m} size={34} />
               <span className="text-[15px]">
-                {m.name}
-                {m.isMe && <span className="ml-1.5 text-xs text-muted">({t('you')})</span>}
+                {m.name}{' '}
+                {m.isMe && <span className="text-xs text-muted">({t('you')})</span>}
               </span>
             </li>
           ))}

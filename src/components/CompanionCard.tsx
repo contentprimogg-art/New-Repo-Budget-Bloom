@@ -25,6 +25,7 @@ export default function CompanionCard() {
           <button
             type="button"
             role="switch"
+            aria-label={t('companionEnabled')}
             aria-checked={settings.enabled}
             onClick={() => writeCompanion({ ...settings, enabled: !settings.enabled })}
             className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${settings.enabled ? 'bg-accent-strong' : 'bg-track'}`}

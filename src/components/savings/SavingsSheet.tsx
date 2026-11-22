@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { emojiTints } from '../../lib/color'
-import { parseAmount } from '../../lib/format'
+import { fmtMoney, parseAmount } from '../../lib/format'
 import type { SavingsEnvelope } from '../../lib/savings'
 import { supabase } from '../../lib/supabase'
 import ConfirmButton from '../ConfirmButton'
@@ -17,6 +17,7 @@ export default function SavingsSheet({
   defaultColor,
   sort,
   hasChildren,
+  maxMilestone = null,
   onClose,
   onSaved,
   onDeleted,
@@ -27,11 +28,13 @@ export default function SavingsSheet({
   defaultColor: string
   sort: number
   hasChildren?: boolean
+  /** Plus haut palier existant: l'objectif ne peut pas être en dessous. */
+  maxMilestone?: number | null
   onClose: () => void
   onSaved: () => void
   onDeleted?: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [name, setName] = useState(envelope?.name ?? '')
   const [target, setTarget] = useState(envelope?.target == null ? '' : String(envelope.target).replace('.', ','))
   const [look, setLook] = useState(() =>
@@ -46,6 +49,7 @@ export default function SavingsSheet({
     const goal = target.trim() === '' ? null : parseAmount(target)
     if (!name.trim()) return setError(t('errNameRequired'))
     if (goal !== null && !(goal > 0)) return setError(t('errAmount'))
+    if (goal !== null && maxMilestone != null && goal < maxMilestone) return setError(t('errGoalBelowMilestone', { amount: fmtMoney(maxMilestone, i18n.language) }))
     setBusy(true)
     const values = { name: name.trim(), target: goal, icon: look.icon, color: look.color }
     const { error } = envelope

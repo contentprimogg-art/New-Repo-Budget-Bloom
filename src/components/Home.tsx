@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { mergePending, useOutboxCount } from '../lib/expenses'
 import { fmtMonth } from '../lib/format'
+import { loadForecast } from '../lib/forecast'
 import { colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
 import { useHash } from '../lib/route'
@@ -66,6 +67,7 @@ export default function Home({ householdId }: { householdId: string }) {
   const [spentBy, setSpentBy] = useState<Record<string, number>>({})
   const [contributors, setContributors] = useState<Record<string, string[]>>({})
   const [incomes, setIncomes] = useState<Income[]>([])
+  const [savedFromBudget, setSavedFromBudget] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [sheet, setSheet] = useState<SheetState>(null)
@@ -122,13 +124,31 @@ export default function Home({ householdId }: { householdId: string }) {
       ((inc.data ?? []) as Income[]).map((i) => ({ ...i, amount: Number(i.amount) })),
       (i) => i.month === month,
     ).sort((a, b) => a.received_on.localeCompare(b.received_on))
+    // Mois à venir: les éléments récurrents sont affichés « prévus ».
+    let shownEnvelopes = list
+    let shownIncomes = incomeRows
+    if (month > nowMonth) {
+      const f = await loadForecast(householdId, month, list, incomeRows)
+      shownEnvelopes = [...list, ...f.envelopes].sort((a, b) => a.sort - b.sort)
+      shownIncomes = [...incomeRows, ...f.incomes].sort((a, b) => a.received_on.localeCompare(b.received_on))
+      Object.assign(sums, f.spentBy)
+    }
+    // Épargne prise sur l'argent de ce mois (dépôts moins retraits; migration 0011).
+    const saved = await supabase
+      .from('savings_entries')
+      .select('amount')
+      .eq('household_id', householdId)
+      .eq('from_budget', true)
+      .gte('entry_date', `${month}-01`)
+      .lt('entry_date', `${shiftMonth(month, 1)}-01`)
     if (id !== requestId.current) return // une requête plus récente (autre mois) a pris le relais
+    setSavedFromBudget(saved.error ? 0 : (saved.data ?? []).reduce((s, r) => s + Number(r.amount), 0))
     setLoadError(null)
-    setEnvelopes(list)
+    setEnvelopes(shownEnvelopes)
     setGroups((grp.data ?? []) as EnvelopeGroup[])
     setSpentBy(sums)
     setContributors(Object.fromEntries(Object.entries(authors).map(([k, v]) => [k, [...v]])))
-    setIncomes(incomeRows)
+    setIncomes(shownIncomes)
     setLoaded(true)
   }, [householdId, month, nowMonth])
 
@@ -149,14 +169,17 @@ export default function Home({ householdId }: { householdId: string }) {
     void load()
   }
 
-  const selected = selectedId ? envelopes.find((e) => e.id === selectedId) : undefined
+  const realEnvelopes = envelopes.filter((e) => !e.forecast)
+  const hasForecast = envelopes.some((e) => e.forecast) || incomes.some((i) => i.forecast)
+  const selected = selectedId ? realEnvelopes.find((e) => e.id === selectedId) : undefined
   if (selected) {
     return (
       <EnvelopeDetail
         envelope={selected}
-        envelopes={envelopes}
+        envelopes={realEnvelopes}
         groups={groups}
-        siblings={envelopes
+        knownSpent={spentBy[selected.id] ?? 0}
+        siblings={realEnvelopes
           .filter((e) => e.id !== selected.id)
           .map((e) => ({ name: e.name, remaining: e.budget - (spentBy[e.id] ?? 0) }))}
         advice={
@@ -191,12 +214,14 @@ export default function Home({ householdId }: { householdId: string }) {
           <IconButton label={t('search')} onClick={() => setSheet({ kind: 'search' })}>
             <Search size={21} />
           </IconButton>
-          <IconButton label={t('settings')} href="#/profile">
-            <Settings size={21} />
-          </IconButton>
+          <span className="lg:hidden">
+            <IconButton label={t('settings')} href="#/profile">
+              <Settings size={21} />
+            </IconButton>
+          </span>
         </span>
       }
-      fab={envelopes.length > 0 ? <Fab label={t('newExpense')} onClick={() => setSheet({ kind: 'quick' })} /> : undefined}
+      fab={realEnvelopes.length > 0 ? <Fab label={t('newExpense')} onClick={() => setSheet({ kind: 'quick' })} /> : undefined}
       subtitle={
         <>
         <HouseholdChip />
@@ -209,7 +234,7 @@ export default function Home({ householdId }: { householdId: string }) {
           >
             <ChevronLeft size={16} />
           </button>
-          <span className="px-1">{fmtMonth(month, lng)}</span>
+          <span className="whitespace-nowrap px-1">{fmtMonth(month, lng)}</span>
           <button
             type="button"
             onClick={() => setMonth(shiftMonth(month, 1))}
@@ -235,6 +260,7 @@ export default function Home({ householdId }: { householdId: string }) {
           </button>
         </p>
       )}
+      {hasForecast && <p className="no-print rounded-2xl bg-accent-soft px-4 py-3 text-sm">{t('forecastNotice')}</p>}
       {(pending > 0 || notice) && (
         <p role="status" className="no-print flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm shadow-sm">
           <CloudOff size={16} className="shrink-0 text-muted" />
@@ -260,6 +286,7 @@ export default function Home({ householdId }: { householdId: string }) {
                 totalBudget={totalBudget}
                 totalSpent={totalSpent}
                 totalIncome={totalIncome}
+                savedFromBudget={savedFromBudget}
                 totalOver={overList.reduce((s, e) => s + (spentBy[e.id] ?? 0) - e.budget, 0)}
                 overCount={overList.length}
               />
@@ -337,7 +364,7 @@ export default function Home({ householdId }: { householdId: string }) {
         </div>
       </div>
 
-      {sheet?.kind === 'quick' && <QuickAddSheet envelopes={envelopes} onClose={() => setSheet(null)} onAdded={onAdded} />}
+      {sheet?.kind === 'quick' && <QuickAddSheet envelopes={realEnvelopes} onClose={() => setSheet(null)} onAdded={onAdded} />}
       {sheet?.kind === 'envelope' && (
         <EnvelopeSheet
           householdId={householdId}

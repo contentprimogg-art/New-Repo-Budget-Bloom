@@ -29,6 +29,8 @@ export interface SavingsEntry {
   entry_date: string
   source_expense_id: string | null
   transfer_id: string | null
+  /** Pris sur l'argent du mois (dépôt) ou remis dedans (retrait). */
+  from_budget?: boolean
 }
 
 export interface SavingsData {

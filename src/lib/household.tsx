@@ -1,5 +1,7 @@
+import i18next from 'i18next'
 import { Fragment, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { setCurrency as setFormatCurrency } from './format'
+import { useOptionalProfile } from './profile'
 import { useDataVersion } from './realtime'
 import { supabase } from './supabase'
 
@@ -30,6 +32,7 @@ const HouseholdContext = createContext<HouseholdValue | null>(null)
 // Foyer: devise et membres (nom et photo de chacun, visibles par les autres membres).
 export function HouseholdProvider({ householdId, userId, children }: { householdId: string; userId: string; children: React.ReactNode }) {
   const version = useDataVersion()
+  const myEmail = useOptionalProfile()?.email ?? ''
   const [currency, setCurrency] = useState('EUR')
   const [name, setName] = useState('')
   const [members, setMembers] = useState<Member[]>([])
@@ -54,13 +57,14 @@ export function HouseholdProvider({ householdId, userId, children }: { household
         const name = [p?.first_name, p?.last_name].filter(Boolean).join(' ')
         return {
           id,
-          name: name || '?',
+          // Sans prénom: son email pour soi-même (celui des autres reste privé).
+          name: name || (id === userId && myEmail ? myEmail : i18next.t('memberUnnamed')),
           avatarUrl: p?.avatar_path ? (urlByPath.get(p.avatar_path as string) ?? null) : null,
           isMe: id === userId,
         }
       }),
     )
-  }, [householdId, userId])
+  }, [householdId, userId, myEmail])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

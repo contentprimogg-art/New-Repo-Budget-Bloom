@@ -1,7 +1,7 @@
 import { House, Settings } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import ScriptTitle from '../ScriptTitle'
-import TabBar, { BottomNav } from '../TabBar'
+import SideNav, { BottomNav } from '../TabBar'
 import { IconButton } from './PageHeader'
 
 // Gabarit de page inspiré de huddle: grand titre manuscrit aligné à gauche, sous-titre discret,
@@ -32,22 +32,28 @@ export default function PageShell({
   const { t } = useTranslation()
   const right =
     action === 'settings' ? (
-      <IconButton label={t('settings')} href="#/profile">
-        <Settings size={21} />
-      </IconButton>
+      <span className="lg:hidden">
+        <IconButton label={t('settings')} href="#/profile">
+          <Settings size={21} />
+        </IconButton>
+      </span>
     ) : action === 'home' ? (
-      <IconButton label={t('home')} href="#/">
-        <House size={21} />
-      </IconButton>
+      <span className="lg:hidden">
+        <IconButton label={t('home')} href="#/">
+          <House size={21} />
+        </IconButton>
+      </span>
     ) : (
       action
     )
 
   return (
-    <div className="app-shell relative flex flex-col">
+    <div className="app-shell flex">
+      <SideNav />
+      <div className="relative flex min-w-0 flex-1 flex-col">
       <div className="app-scroll min-h-0 flex-1">
         <main
-          className={`fade-up mx-auto flex w-full max-w-xl flex-col gap-5 px-5 pb-28 pt-[max(1.75rem,env(safe-area-inset-top))] md:pb-16 ${wide ? 'lg:max-w-5xl' : ''}`}
+          className={`fade-up mx-auto flex w-full max-w-xl flex-col gap-5 px-5 pb-28 pt-[max(1.75rem,env(safe-area-inset-top))] md:max-w-3xl md:px-8 lg:px-10 lg:pb-16 ${wide ? 'lg:max-w-none 2xl:max-w-[1500px]' : 'lg:max-w-4xl'}`}
         >
           <header className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-1">
@@ -60,7 +66,6 @@ export default function PageShell({
               </div>
             </div>
             <div className="mt-1.5 flex shrink-0 items-center gap-3">
-              <TabBar />
               {right}
             </div>
           </header>
@@ -69,6 +74,7 @@ export default function PageShell({
       </div>
       {fab}
       <BottomNav />
+      </div>
     </div>
   )
 }

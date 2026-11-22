@@ -77,6 +77,7 @@ export default function MonthSummary({
   totalBudget,
   totalSpent,
   totalIncome = 0,
+  savedFromBudget = 0,
   totalOver,
   overCount,
 }: {
@@ -85,6 +86,8 @@ export default function MonthSummary({
   totalBudget: number
   totalSpent: number
   totalIncome?: number
+  /** Dépôts d'épargne pris sur ce mois, moins les retraits remis dedans. */
+  savedFromBudget?: number
   totalOver: number
   overCount: number
 }) {
@@ -139,15 +142,15 @@ export default function MonthSummary({
   const left = totalBudget - totalSpent
   // Argent disponible ce mois-ci: solde de début + revenus (dès qu'au moins l'un des deux est connu).
   const available = start == null && totalIncome === 0 ? null : (start ?? 0) + totalIncome
-  const toAllocate = available == null ? null : available - totalBudget
-  const estimated = available == null ? null : available - totalSpent
+  const toAllocate = available == null ? null : available - totalBudget - savedFromBudget
+  const estimated = available == null ? null : available - totalSpent - savedFromBudget
   const gap = end != null && estimated != null ? end - estimated : null
 
   return (
     <section className="flex flex-col gap-4">
       <SummaryColumns
         items={[
-          { label: t('colBalance'), value: start == null ? '—' : money(start), tone: 'var(--chart-2)' },
+          { label: t('colBalance'), value: estimated == null ? '—' : money(estimated), tone: 'var(--chart-2)', valueClassName: estimated != null && estimated < 0 ? 'text-over' : '' },
           { label: t('incomes'), value: money(totalIncome), tone: 'var(--ok)' },
           { label: t('spentShort'), value: money(totalSpent), tone: 'var(--accent-strong)', valueClassName: left < 0 ? 'text-over' : '' },
         ]}
@@ -183,6 +186,15 @@ export default function MonthSummary({
               )}
             </BalanceRow>
             <BalanceRow label={t('endBalance')} value={asField(end)} saved={flash === 'end_balance'} onSave={save('end_balance')} />
+            {savedFromBudget !== 0 && (
+              <li className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span className="min-w-0 flex-1">
+                  {t('savedFromBudget')}
+                  <span className="block text-xs text-muted">{t('savedFromBudgetHint')}</span>
+                </span>
+                <span className="min-w-0 max-w-[55%] text-right font-medium tabular-nums [overflow-wrap:anywhere]">{money(savedFromBudget)}</span>
+              </li>
+            )}
             {toAllocate != null && (
               <li className="flex items-center justify-between gap-3 py-2.5 text-sm" title={t('toAllocateHint')}>
                 <span className="min-w-0 flex-1">

@@ -19,6 +19,17 @@ function isAppInstalled() {
   )
 }
 
+const DISMISSED_KEY = 'bloomInstallDismissed'
+const wasDismissed = () => {
+  try {
+    return localStorage.getItem(DISMISSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+// Le bandeau ne concerne que les téléphones et tablettes.
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 const isAndroid = () => /Android/i.test(navigator.userAgent)
 
 function isAppleMobile() {
@@ -29,14 +40,14 @@ export default function InstallPrompt({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
   // Dans l'APK, l'appli est déjà installée.
   const [installed, setInstalled] = useState(() => isAppInstalled() || isNative())
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useState(wasDismissed)
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null)
   const [showInstructions, setShowInstructions] = useState(false)
   const [isPrompting, setIsPrompting] = useState(false)
   const [promptError, setPromptError] = useState(false)
   const appleMobile = isAppleMobile()
   const android = isAndroid()
-  const visible = !installed && !dismissed
+  const visible = !installed && !dismissed && isTouchDevice()
 
   useEffect(() => {
     function onBeforeInstallPrompt(event: Event) {
@@ -115,7 +126,14 @@ export default function InstallPrompt({ children }: { children: ReactNode }) {
             </button>
             <button
               type="button"
-              onClick={() => setDismissed(true)}
+              onClick={() => {
+                setDismissed(true)
+                try {
+                  localStorage.setItem(DISMISSED_KEY, '1')
+                } catch {
+                  /* stockage indisponible */
+                }
+              }}
               className="rounded-full border border-accent-strong px-3 py-2 text-sm font-medium text-accent-strong"
             >
               {t('installIgnore')}

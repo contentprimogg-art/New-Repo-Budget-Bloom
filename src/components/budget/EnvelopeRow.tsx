@@ -29,13 +29,14 @@ export default function EnvelopeRow({
 
   return (
     <li>
-      <button type="button" onClick={onOpen} className="flex w-full flex-col gap-2.5 py-3.5 text-left">
+      <button type="button" onClick={onOpen} disabled={envelope.forecast} className="flex w-full flex-col gap-2.5 py-3.5 text-left disabled:cursor-default!">
         <div className="flex w-full items-center gap-3">
           <IconBadge icon={envelope.icon} color={envelope.color} />
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 truncate text-[15px] font-medium">
               <span className="truncate">{envelope.name}</span>
               {envelope.recurring && <Repeat aria-label={t('recurringLabel')} size={12} className="shrink-0 text-muted" />}
+              {envelope.forecast && <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-strong">{t('forecastBadge')}</span>}
             </p>
             <p className={`flex items-center gap-2 text-xs ${over ? 'font-semibold text-over' : 'text-muted'}`}>
               {over ? t('overBy', { amount: money(stats.overBy) }) : `${t('remaining')} : ${money(stats.remaining)}`}

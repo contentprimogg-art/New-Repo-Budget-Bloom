@@ -1,3 +1,10 @@
+# www.budgetbloom.ciaoprimo.fr renvoie vers l'adresse principale.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP_HOST} ^www\.budgetbloom\.ciaoprimo\.fr$ [NC]
+  RewriteRule ^ https://budgetbloom.ciaoprimo.fr%{REQUEST_URI} [L,R=301]
+</IfModule>
+
 # Serveur Apache (Infomaniak): les fichiers qui décrivent la version de l'app ne doivent pas rester en cache,
 # sinon une mise à jour n'arrive pas sur les téléphones. Les fichiers dans assets/ ont un nom unique par version.
 <IfModule mod_headers.c>

@@ -12,7 +12,8 @@ import MilestoneBar from './MilestoneBar'
 import ScriptTitle from './ScriptTitle'
 import Select from './Select'
 import SavingsSheet from './savings/SavingsSheet'
-import Field, { SECONDARY } from './ui/Field'
+import Field, { PRIMARY, SECONDARY } from './ui/Field'
+import Sheet from './ui/Sheet'
 import Card from './ui/Card'
 import { IconButton } from './ui/PageHeader'
 import PageShell from './ui/PageShell'
@@ -44,11 +45,12 @@ export default function SavingsDetail({
   const [entries, setEntries] = useState<SavingsEntry[]>([])
   const [entriesError, setEntriesError] = useState<string | null>(null)
   const [sheet, setSheet] = useState<'edit' | 'child' | null>(null)
+  const [editingEntry, setEditingEntry] = useState<SavingsEntry | null>(null)
 
   const loadEntries = useCallback(async () => {
     const { data: rows, error } = await supabase
       .from('savings_entries')
-      .select('id, savings_id, amount, note, entry_date, source_expense_id, transfer_id')
+      .select('*')
       .eq('savings_id', envelope.id)
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -143,11 +145,22 @@ export default function SavingsDetail({
                         {e.amount > 0 ? '+' : ''}
                         {money(e.amount)}
                       </span>
+                      {!e.source_expense_id && (
+                        <button
+                          type="button"
+                          aria-label={`${t('editMovement')} : ${e.note || t('unnamed')}`}
+                          title={t('editMovement')}
+                          onClick={() => setEditingEntry(e)}
+                          className="no-print rounded-full p-1 text-muted hover:text-accent-strong"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                      )}
                       <ConfirmButton
                         label={<X size={16} />}
                         ariaLabel={t('delete')}
                         confirmLabel={t('confirmDelete')}
-                        className="no-print rounded-full p-1 text-muted opacity-60 hover:text-over hover:opacity-100"
+                        className="no-print rounded-full p-1 text-muted hover:text-over"
                         confirmClassName="no-print text-xs font-semibold text-over underline"
                         onConfirm={async () => {
                           // Un virement interne est composé de deux écritures: on retire les deux.
@@ -172,6 +185,7 @@ export default function SavingsDetail({
           defaultColor={envelope.color ?? colorForIndex(0)}
           sort={envelope.sort}
           hasChildren={children.length > 0}
+          maxMilestone={milestones.length ? Math.max(...milestones) : null}
           onClose={() => setSheet(null)}
           onSaved={reload}
           onDeleted={() => {
@@ -190,7 +204,110 @@ export default function SavingsDetail({
           onSaved={reload}
         />
       )}
+      {editingEntry && <MovementSheet entry={editingEntry} data={data} onClose={() => setEditingEntry(null)} onSaved={refresh} />}
     </PageShell>
+  )
+}
+
+// Modification d'un mouvement. Un virement interne garde ses deux écritures cohérentes.
+function MovementSheet({ entry, data, onClose, onSaved }: { entry: SavingsEntry; data: SavingsData; onClose: () => void; onSaved: () => void }) {
+  const { t, i18n } = useTranslation()
+  const isTransfer = !!entry.transfer_id
+  const [kind, setKind] = useState<'deposit' | 'withdraw'>(entry.amount > 0 ? 'deposit' : 'withdraw')
+  const [amount, setAmount] = useState(() => {
+    const text = String(Math.abs(entry.amount))
+    return i18n.language.startsWith('fr') ? text.replace('.', ',') : text
+  })
+  const [note, setNote] = useState(entry.note ?? '')
+  const [date, setDate] = useState(entry.entry_date)
+  const [fromBudget, setFromBudget] = useState(!!entry.from_budget)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (busy) return
+    const value = round(parseAmount(amount))
+    if (!(value > 0)) return setError(t('errAmount'))
+    if (!date) return setError(t('errGeneric'))
+    const common = { note: note.trim() || null, entry_date: date }
+    setBusy(true)
+    let failure: string | null = null
+    if (isTransfer) {
+      const { data: pair, error: pairError } = await supabase.from('savings_entries').select('*').eq('transfer_id', entry.transfer_id!)
+      const rows = (pair ?? []) as SavingsEntry[]
+      const out = rows.find((r) => Number(r.amount) < 0)
+      const into = rows.find((r) => Number(r.amount) > 0)
+      if (pairError || !out || !into) failure = pairError?.message ?? t('errGeneric')
+      else {
+        const old = Number(into.amount)
+        if ((data.own[out.savings_id] ?? 0) + old - value < 0 || (data.own[into.savings_id] ?? 0) - old + value < 0) {
+          setBusy(false)
+          return setError(t('errInsufficient'))
+        }
+        // Une seule requête: les deux écritures changent ensemble ou pas du tout.
+        const { error } = await supabase.from('savings_entries').upsert([
+          { ...out, ...common, amount: -value },
+          { ...into, ...common, amount: value },
+        ])
+        failure = error?.message ?? null
+      }
+    } else {
+      const signed = kind === 'deposit' ? value : -value
+      if ((data.own[entry.savings_id] ?? 0) - entry.amount + signed < 0) {
+        setBusy(false)
+        return setError(t('errInsufficient'))
+      }
+      let result = await supabase.from('savings_entries').update({ ...common, amount: signed, from_budget: fromBudget }).eq('id', entry.id)
+      // Base sans la migration 0011: le mouvement est quand même enregistré.
+      if (result.error && /from_budget/.test(result.error.message)) result = await supabase.from('savings_entries').update({ ...common, amount: signed }).eq('id', entry.id)
+      failure = result.error?.message ?? null
+    }
+    setBusy(false)
+    if (failure) return setError(`${t('errSave')} (${failure})`)
+    onSaved()
+    onClose()
+  }
+
+  return (
+    <Sheet title={t('editMovement')} onClose={onClose}>
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+        {!isTransfer && (
+          <div role="radiogroup" aria-label={t('movementKind')} className="flex gap-2">
+            {(['deposit', 'withdraw'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={kind === k}
+                onClick={() => setKind(k)}
+                className={`rounded-full border px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${kind === k ? 'border-accent bg-accent-soft text-accent-strong' : 'border-border text-muted'}`}
+              >
+                {k === 'deposit' ? t('deposit') : t('withdrawal')}
+              </button>
+            ))}
+          </div>
+        )}
+        <Field label={t('amount')} error={error}>
+          <input inputMode="decimal" aria-invalid={!!error} value={amount} onChange={(e) => setAmount(e.target.value)} className="field-line text-lg tabular-nums" />
+        </Field>
+        <Field label={t('movementNote')}>
+          <input value={note} onChange={(e) => setNote(e.target.value)} className="field-line" />
+        </Field>
+        <Field label={t('date')}>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field-line" />
+        </Field>
+        {!isTransfer && (
+          <label className="flex items-start gap-2.5 text-sm">
+            <input type="checkbox" checked={fromBudget} onChange={(e) => setFromBudget(e.target.checked)} className="mt-0.5 size-4" />
+            <span>{kind === 'deposit' ? t('fromBudgetDeposit') : t('fromBudgetWithdraw')}</span>
+          </label>
+        )}
+        <button disabled={busy} className={PRIMARY}>
+          {t('save')}
+        </button>
+      </form>
+    </Sheet>
   )
 }
 
@@ -213,6 +330,7 @@ function MovementForm({
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [date, setDate] = useState(todayIso())
+  const [fromBudget, setFromBudget] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -223,13 +341,16 @@ function MovementForm({
     if (!(value > 0)) return setError(t('errAmount'))
     if (kind === 'withdraw' && value > own) return setError(t('errInsufficient'))
     setBusy(true)
-    const { error } = await supabase.from('savings_entries').insert({
+    const row = {
       household_id: householdId,
       savings_id: envelope.id,
       amount: kind === 'deposit' ? value : -value,
       note: note.trim() || null,
       entry_date: date || todayIso(),
-    })
+    }
+    let { error } = await supabase.from('savings_entries').insert({ ...row, from_budget: fromBudget })
+    // Base sans la migration 0011: le mouvement est quand même enregistré.
+    if (error && /from_budget/.test(error.message)) ({ error } = await supabase.from('savings_entries').insert(row))
     setBusy(false)
     if (error) return setError(`${t('errSave')} (${error.message})`)
     setError(null)
@@ -265,6 +386,10 @@ function MovementForm({
       <Field label={t('date')}>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field-line" />
       </Field>
+      <label className="flex items-start gap-2.5 text-sm">
+        <input type="checkbox" checked={fromBudget} onChange={(e) => setFromBudget(e.target.checked)} className="mt-0.5 size-4" />
+        <span>{kind === 'deposit' ? t('fromBudgetDeposit') : t('fromBudgetWithdraw')}</span>
+      </label>
       <button disabled={busy} className="rounded-full bg-accent-strong px-5 py-2.5 font-semibold text-on-accent">
         {t('record')}
       </button>
@@ -411,6 +536,7 @@ function Milestones({
     e.preventDefault()
     const value = round(parseAmount(amount))
     if (!(value > 0)) return setError(t('errAmount'))
+    if (envelope.target != null && value > envelope.target) return setError(t('errMilestoneAboveGoal', { amount: fmtMoney(envelope.target, i18n.language) }))
     const { error } = await supabase.from('savings_milestones').insert({ household_id: householdId, savings_id: envelope.id, amount: value })
     if (error) return setError(error.code === '23505' ? t('errMilestoneExists') : `${t('errSave')} (${error.message})`)
     setError(null)

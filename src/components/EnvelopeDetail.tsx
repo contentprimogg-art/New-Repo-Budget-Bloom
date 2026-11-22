@@ -2,12 +2,12 @@ import { ChevronLeft, CloudOff, Pencil, Repeat, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { mergePending, mutate } from '../lib/expenses'
-import { fmtDate, fmtMoney, fmtMonth, parseAmount } from '../lib/format'
+import { fmtDate, fmtMoney, fmtMonth } from '../lib/format'
 import { useOptionalHousehold } from '../lib/household'
 import { IconBadge, colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
 import { FREQUENCIES, lineageOf, makeRecurring, type Frequency } from '../lib/recurring'
-import { settleExpense, syncLinkedAmount } from '../lib/savings'
+import { settleExpense } from '../lib/savings'
 import { supabase } from '../lib/supabase'
 import { envelopeTips, type Sibling } from '../lib/tips'
 import {
@@ -21,6 +21,7 @@ import {
   type RecurringExpense,
 } from '../lib/types'
 import EnvelopeSheet from './budget/EnvelopeSheet'
+import ExpenseEditSheet from './budget/ExpenseEditSheet'
 import QuickAddSheet from './budget/QuickAddSheet'
 import EnvelopeTable from './EnvelopeTable'
 import KeepDialog from './KeepDialog'
@@ -76,6 +77,7 @@ export default function EnvelopeDetail({
   envelopes,
   groups,
   siblings = [],
+  knownSpent = 0,
   advice,
   onChanged,
   onClose,
@@ -84,6 +86,8 @@ export default function EnvelopeDetail({
   envelopes: Envelope[]
   groups: EnvelopeGroup[]
   siblings?: Sibling[]
+  /** Total déjà connu de l'accueil: affiché tant que les transactions se chargent. */
+  knownSpent?: number
   /** Conseils du compagnon pour cette enveloppe (mois en cours). */
   advice?: React.ComponentProps<typeof AdviceList>
   onChanged: () => void
@@ -137,7 +141,7 @@ export default function EnvelopeDetail({
     onChanged()
   }
 
-  const spent = expenses.reduce((sum, e) => (countsAsSpent(e.status) ? sum + e.amount : sum), 0)
+  const spent = loaded ? expenses.reduce((sum, e) => (countsAsSpent(e.status) ? sum + e.amount : sum), 0) : knownSpent
   const stats = envelopeStats(envelope.budget, spent)
   const over = stats.overBy > 0
   const group = groups.find((g) => g.id === envelope.group_id)
@@ -218,7 +222,7 @@ export default function EnvelopeDetail({
           {advice && envelope.month === currentMonth() ? (
             <AdviceList {...advice} />
           ) : (
-          <Tips
+          loaded && <Tips
             tips={envelopeTips({
               envelope,
               expenses,
@@ -294,15 +298,28 @@ export default function EnvelopeDetail({
               ))}
             </div>
           )}
+          {!loaded && (
+            <Card>
+              <div role="status" aria-label={t('loading')} className="flex animate-pulse flex-col gap-4">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="size-11 rounded-2xl bg-track" />
+                    <div className="h-3 flex-1 rounded-full bg-track" />
+                    <div className="h-3 w-16 rounded-full bg-track" />
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
           {loaded && expenses.length === 0 && view !== 'table' && <Card description={t('noTransactions')} />}
           {view !== 'table' && expenses.length > 0 && visible.length === 0 && <Card description={t('noResults')} />}
-          {(view === 'table' || expenses.length > 0) &&
+          {loaded && (view === 'table' || expenses.length > 0) &&
             (view === 'table' ? (
               <EnvelopeTable envelope={envelope} expenses={expenses} onChanged={refresh} />
             ) : view === 'grid' ? (
               <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 {visible.map((e) => (
-                  <TransactionRow key={e.id} householdId={envelope.household_id} envelope={envelope} expense={e} view="grid" onChanged={refresh} />
+                  <TransactionRow key={e.id} householdId={envelope.household_id} envelope={envelope} envelopes={envelopes} expense={e} view="grid" onChanged={refresh} />
                 ))}
               </ul>
             ) : (
@@ -310,7 +327,7 @@ export default function EnvelopeDetail({
               <Card>
                 <ul className="-my-2 divide-y divide-dashed divide-muted/30">
                   {visible.map((e) => (
-                    <TransactionRow key={e.id} householdId={envelope.household_id} envelope={envelope} expense={e} view="list" onChanged={refresh} />
+                    <TransactionRow key={e.id} householdId={envelope.household_id} envelope={envelope} envelopes={envelopes} expense={e} view="list" onChanged={refresh} />
                   ))}
                 </ul>
               </Card>
@@ -346,12 +363,14 @@ export default function EnvelopeDetail({
 export function TransactionRow({
   householdId,
   envelope,
+  envelopes,
   expense,
   view,
   onChanged,
 }: {
   householdId: string
   envelope?: Envelope
+  envelopes?: Envelope[]
   expense: Expense
   view: Exclude<DetailView, 'table'>
   onChanged: () => void
@@ -360,9 +379,6 @@ export function TransactionRow({
   const lng = i18n.language
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [note, setNote] = useState(expense.note ?? '')
-  const [amount, setAmount] = useState(String(expense.amount).replace('.', ','))
-  const [invalid, setInvalid] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [settling, setSettling] = useState(false)
   const [picking, setPicking] = useState(false)
@@ -379,20 +395,6 @@ export function TransactionRow({
     const r = await makeRecurring({ envelope, expense, every })
     if (r.error) return setFailure(/recurring_expenses/.test(r.error) ? t('errMigration0008') : `${t('errSave')} (${r.error})`)
     setRepeating(false)
-    setFailure(null)
-    onChanged()
-  }
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
-    const value = parseAmount(amount)
-    if (!(value > 0)) return setInvalid(true)
-    // Modification possible hors-ligne (mise en attente puis envoyée au retour du réseau).
-    const { error, queued } = await mutate({ kind: 'update', table: 'expenses', id: expense.id, values: { note: note.trim() || null, amount: value } })
-    if (error) return fail(error)
-    if (!queued) await syncLinkedAmount(expense.id, value)
-    setEditing(false)
-    setInvalid(false)
     setFailure(null)
     onChanged()
   }
@@ -425,18 +427,18 @@ export function TransactionRow({
 
   const details = (
     <div className="no-print flex flex-col gap-2 pb-3 text-xs">
-      {editing ? (
-        <form onSubmit={save} noValidate className="flex flex-col gap-2">
-          <input aria-label={t('transactionName')} value={note} onChange={(e) => setNote(e.target.value)} className="field-line text-sm" />
-          <input inputMode="decimal" aria-label={t('amount')} aria-invalid={invalid} value={amount} onChange={(e) => setAmount(e.target.value)} className="field-line text-sm tabular-nums" />
-          <div className="flex gap-2">
-            <button className="rounded-full bg-accent-strong px-4 py-1.5 font-medium text-on-accent">{t('save')}</button>
-            <button type="button" onClick={() => setEditing(false)} className="px-2 text-muted underline">
-              {t('cancel')}
-            </button>
-          </div>
-        </form>
-      ) : (
+      {editing && (
+        <ExpenseEditSheet
+          expense={expense}
+          envelopes={envelopes ?? (envelope ? [envelope] : [])}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setFailure(null)
+            onChanged()
+          }}
+        />
+      )}
+      {(
         <div className="flex flex-wrap items-center gap-2">
           {settled ? (
             <button onClick={() => void setStatus('active')} className={pill}>

@@ -28,7 +28,7 @@ export default function AuthHero({ greetingName }: { greetingName?: string | nul
 
   return (
     <div className="relative w-full overflow-hidden rounded-b-4xl shadow-lg shadow-accent/20 md:rounded-4xl">
-      <div className="relative h-[46dvh] min-h-72 md:aspect-4/5 md:h-auto">
+      <div className={`relative md:aspect-4/5 md:h-auto ${photo ? 'h-[46dvh] min-h-72' : 'h-28'}`}>
         {photo ? (
           <>
             <img src={photo} alt="" className="size-full object-cover" />

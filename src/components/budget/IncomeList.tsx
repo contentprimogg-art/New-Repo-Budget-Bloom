@@ -19,12 +19,19 @@ export default function IncomeList({ incomes, onEdit }: { incomes: Income[]; onE
           const author = income.created_by ? household?.memberById[income.created_by] : undefined
           return (
             <li key={income.id}>
-              <button type="button" onClick={() => onEdit(income)} className="flex w-full items-center gap-3 py-3 text-left">
+              <button
+                type="button"
+                onClick={() => onEdit(income)}
+                disabled={income.forecast}
+                aria-label={`${t('editIncome')} : ${income.label}, ${fmtMoney(income.amount, i18n.language)}`}
+                className="flex w-full items-center gap-3 py-3 text-left disabled:cursor-default!"
+              >
                 <IconBadge icon={income.icon ?? '💶'} color={income.color ?? '#E2F3E6'} size="sm" />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5 truncate text-[15px]">
                     <span className="truncate">{income.label}</span>
                     {income.recurring && <Repeat aria-label={t('incomeRecurring')} size={12} className="shrink-0 text-muted" />}
+                    {income.forecast && <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-strong">{t('forecastBadge')}</span>}
                     {income.pending && <CloudOff aria-label={t('pendingOne')} size={12} className="shrink-0 text-muted" />}
                   </span>
                   <span className="text-xs text-muted">{fmtDate(income.received_on, i18n.language)}</span>

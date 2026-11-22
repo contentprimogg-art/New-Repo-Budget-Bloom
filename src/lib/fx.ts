@@ -67,3 +67,11 @@ export const fmtRate = (rate: number, lng: string) => {
 }
 
 export const roundMoney = (n: number) => Math.round(n * 100) / 100
+
+/** Nouveau montant saisi: pour une dépense en devise étrangère, c'est le montant d'origine, reconverti au même taux. */
+export function amountPatch(e: { amount: number; original_amount?: number | null; original_currency?: string | null }, value: number) {
+  if (e.original_currency && e.original_amount) {
+    return { amount: Math.max(roundMoney((value * e.amount) / Number(e.original_amount)), 0.01), original_amount: value }
+  }
+  return { amount: value }
+}

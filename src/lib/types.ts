@@ -14,6 +14,8 @@ export interface Envelope {
   /** Identifiant commun à « la même » enveloppe d'un mois à l'autre (migration 0008). */
   lineage_id?: string | null
   created_by?: string | null
+  /** Mois à venir: enveloppe récurrente affichée « prévue », pas encore créée. */
+  forecast?: boolean
 }
 
 export interface EnvelopeGroup {
@@ -70,6 +72,8 @@ export interface Income {
   color: string | null
   created_by?: string | null
   pending?: boolean
+  /** Mois à venir: revenu récurrent affiché « prévu », pas encore créé. */
+  forecast?: boolean
 }
 
 // Une dépense remboursée « libérée » ne pèse plus sur l'enveloppe; « mise de côté » oui.

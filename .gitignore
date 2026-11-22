@@ -27,5 +27,9 @@ dist-ssr
 .env.*
 !.env.example
 
+# Clés Firebase: jamais dans le dépôt
+*firebase-adminsdk*.json
+/google-services.json
+
 # APK construit localement (celui de public/ est publié avec le site)
 /budget-bloom.apk

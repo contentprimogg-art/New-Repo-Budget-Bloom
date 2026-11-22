@@ -88,9 +88,19 @@ export default function Select<T extends string>({
     }
   }, [open])
 
+  // Au clavier, l'option active reste visible dans une longue liste.
+  useEffect(() => {
+    if (!open) return
+    const ul = list.current
+    const item = ul?.children[active] as HTMLElement | undefined
+    if (!ul || !item) return
+    if (item.offsetTop < ul.scrollTop) ul.scrollTop = item.offsetTop
+    else if (item.offsetTop + item.offsetHeight > ul.scrollTop + ul.clientHeight) ul.scrollTop = item.offsetTop + item.offsetHeight - ul.clientHeight
+  }, [active, open])
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (!open) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         openList()
       }
@@ -102,6 +112,12 @@ export default function Select<T extends string>({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setActive((a) => (a - 1 + options.length) % options.length)
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      setActive(0)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      setActive(options.length - 1)
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       choose(active)

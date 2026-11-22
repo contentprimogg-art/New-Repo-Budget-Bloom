@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { mutate, type Op } from '../lib/expenses'
 import { defaultDateFor, fmtMoney, parseAmount } from '../lib/format'
+import { amountPatch } from '../lib/fx'
 import { settleExpense, syncLinkedAmount } from '../lib/savings'
 import { countsAsSpent, type Envelope, type Expense, type ExpenseStatus } from '../lib/types'
 import { uuid } from '../lib/uuid'
@@ -85,6 +86,7 @@ function Cell({
       type={type}
       inputMode={col === 'amount' ? 'decimal' : undefined}
       aria-label={label}
+      placeholder={col === 'note' ? label : undefined}
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
@@ -182,6 +184,11 @@ export default function EnvelopeTable({
     ['amount', t('amount'), 'w-36'],
     ['status', t('colStatus'), 'w-52'],
   ]
+  // Montant modifiable: virgule en français; pour une dépense étrangère, le montant d'origine.
+  const asCell = (n: number) => {
+    const text = n.toFixed(2)
+    return i18n.language.startsWith('fr') ? text.replace('.', ',') : text
+  }
   const alignName = (a: Align) => t(a === 'left' ? 'alignLeft' : a === 'center' ? 'alignCenter' : 'alignRight')
 
   return (
@@ -192,7 +199,7 @@ export default function EnvelopeTable({
         </p>
       )}
       <div className="overflow-x-auto rounded-3xl border border-border bg-surface shadow-sm">
-        <table className="w-full min-w-176 border-collapse text-sm">
+        <table className="sheet-table w-full border-collapse text-sm">
           <thead>
             <tr className="bg-accent-soft text-xs uppercase tracking-wide text-accent-strong">
               <th className="w-12 px-3 py-2.5 text-center font-medium">{t('colNumber')}</th>
@@ -256,8 +263,8 @@ export default function EnvelopeTable({
                   </td>
                   <td className="px-2 py-1.5">
                     <Cell
-                      key={`amount-${e.amount}`}
-                      value={String(e.amount)}
+                      key={`amount-${e.original_amount ?? e.amount}-${i18n.language}`}
+                      value={asCell(e.original_currency && e.original_amount != null ? Number(e.original_amount) : e.amount)}
                       row={i}
                       col="amount"
                       label={t('amount')}
@@ -269,11 +276,17 @@ export default function EnvelopeTable({
                           setError(t('errAmount'))
                           return false
                         }
-                        void patch(e.id, { amount: n }).then(() => syncLinkedAmount(e.id, n))
+                        const values = amountPatch(e, n)
+                        void patch(e.id, values).then(() => syncLinkedAmount(e.id, values.amount))
                         return true
                       }}
                       onEnter={goDown}
                     />
+                    {e.original_currency && (
+                      <span className={`block px-2.5 text-[11px] text-muted ${TEXT_ALIGN[aligns.amount]}`}>
+                        {e.original_currency} · ≈ {fmtMoney(e.amount, i18n.language)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-2 py-1.5">
                     <Select

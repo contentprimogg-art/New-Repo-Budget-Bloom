@@ -31,6 +31,12 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
   })
 }
 
+// Champs de montant: seuls les chiffres et séparateurs passent (saisie et collage).
+document.addEventListener('beforeinput', (e) => {
+  const el = e.target
+  if (el instanceof HTMLInputElement && el.inputMode === 'decimal' && e.data && !/^[-\d\s.,]*$/.test(e.data)) e.preventDefault()
+})
+
 // APK: toucher une notification ouvre la bonne page.
 listenNativePush()
 

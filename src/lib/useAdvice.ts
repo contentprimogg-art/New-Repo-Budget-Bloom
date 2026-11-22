@@ -83,13 +83,14 @@ async function loadAdviceData(householdId: string, nowMonth: string): Promise<Ad
 
   const since = new Date()
   since.setDate(since.getDate() - 90)
-  const [inc, bal, rec, anyIncome, entries, savings] = await Promise.all([
+  const [inc, bal, rec, anyIncome, entries, savings, fromBudget] = await Promise.all([
     supabase.from('incomes').select('month, amount').eq('household_id', householdId).in('month', months),
     supabase.from('month_balances').select('month, start_balance').eq('household_id', householdId).in('month', months),
     supabase.from('recurring_expenses').select('lineage_id, note').eq('household_id', householdId),
     supabase.from('incomes').select('id').eq('household_id', householdId).limit(1),
     supabase.from('savings_entries').select('savings_id, amount, entry_date').eq('household_id', householdId).gte('entry_date', since.toISOString().slice(0, 10)),
     loadSavings(householdId),
+    supabase.from('savings_entries').select('amount').eq('household_id', householdId).eq('from_budget', true).gte('entry_date', `${nowMonth}-01`).lt('entry_date', `${shiftMonth(nowMonth, 1)}-01`),
   ])
 
   const incomes: Record<string, number> = {}
@@ -115,6 +116,7 @@ async function loadAdviceData(householdId: string, nowMonth: string): Promise<Ad
       : null,
     recurringKeys: new Set((rec.data ?? []).map((r) => `${r.lineage_id}|${(r.note ?? '').trim().toLowerCase().replace(/\s+/g, ' ')}`)),
     hasAnyIncome: (anyIncome.data ?? []).length > 0,
+    savedThisMonth: fromBudget.error ? 0 : (fromBudget.data ?? []).reduce((s, r) => s + Number(r.amount), 0),
   }
 }
 

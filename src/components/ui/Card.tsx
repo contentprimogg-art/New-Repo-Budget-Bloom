@@ -15,7 +15,7 @@ export default function Card({
 }) {
   return (
     <section className={`rounded-3xl border border-border/80 bg-surface p-5 shadow-[0_1px_2px_rgb(26_29_32/0.04)] ${className}`}>
-      {(title || action) && (
+      {(title || description || action) && (
         <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-3 ${children ? 'mb-4' : ''}`}>
           <div className="min-w-[11rem] flex-1">
             {title && <h2 className="text-[17px] font-medium">{title}</h2>}

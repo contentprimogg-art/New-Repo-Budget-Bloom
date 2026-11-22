@@ -35,6 +35,8 @@ export interface AdviceData {
   recurringKeys: Set<string>
   /** Vrai si le foyer a déjà saisi au moins un revenu (tous mois confondus). */
   hasAnyIncome: boolean
+  /** Épargne prise sur l'argent du mois en cours (dépôts moins retraits). */
+  savedThisMonth?: number
 }
 
 export type Topic = 'pace' | 'budgets' | 'unusual' | 'subscriptions' | 'savings' | 'money' | 'wins'
@@ -177,7 +179,7 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
     const source = spare[0]
     const over = Math.round(o.over * 100) / 100
     if (source) {
-      const amount = Math.min(Math.ceil(over), source.room)
+      const amount = Math.round(Math.min(over, source.room) * 100) / 100
       source.room -= amount
       out.push({
         id: `over:${lineage(o.e)}:${nowMonth}`,
@@ -187,7 +189,7 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
         key: amount >= over ? 'adv_overMove' : 'adv_overMovePart',
         params: { name: o.e.name, over: money(over), from: source.e.name, amount: money(amount) },
         envelopeId: o.e.id,
-        action: { kind: 'moveBudget', fromId: source.e.id, fromBudget: source.e.budget - amount, toId: o.e.id, toBudget: o.e.budget + amount, amount },
+        action: { kind: 'moveBudget', fromId: source.e.id, fromBudget: Math.round((source.e.budget - amount) * 100) / 100, toId: o.e.id, toBudget: Math.round((o.e.budget + amount) * 100) / 100, amount },
         actionKey: 'adv_doMove',
         actionParams: { amount: money(amount), from: source.e.name },
       })
@@ -413,7 +415,7 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
   const start = data.starts[nowMonth] ?? null
   const budgeted = sum(current.map((e) => e.budget))
   if (current.length > 0 && (income > 0 || start != null)) {
-    const free = (start ?? 0) + income - budgeted
+    const free = Math.round(((start ?? 0) + income - budgeted - (data.savedThisMonth ?? 0)) * 100) / 100
     if (free >= 20) {
       out.push({
         id: `unallocated:${nowMonth}`,
@@ -421,7 +423,7 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
         tone: 'idea',
         weight: 50,
         key: 'adv_unallocated',
-        params: { amount: money(Math.floor(free)) },
+        params: { amount: money(free) },
         action: { kind: 'open', hash: '#/savings' },
         actionKey: 'adv_doSavings',
       })
@@ -432,7 +434,7 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
         tone: 'heads',
         weight: 50,
         key: 'adv_overAllocated',
-        params: { amount: money(Math.ceil(-free)) },
+        params: { amount: money(-free) },
       })
     }
   } else if (current.length > 0 && !data.hasAnyIncome && day >= 3) {
@@ -469,10 +471,10 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
           tone: 'win',
           weight: 44,
           key: 'adv_saveRate',
-          params: { month: monthName, rate: Math.round((diff / prevIncome) * 100), amount: money(Math.round(diff)) },
+          params: { month: monthName, rate: Math.round((diff / prevIncome) * 100), amount: money(diff) },
         })
       } else if (diff < -5) {
-        out.push({ id: `rate:${prev}`, topic: 'money', tone: 'info', weight: 30, key: 'adv_spentMore', params: { month: monthName, amount: money(Math.round(-diff)) } })
+        out.push({ id: `rate:${prev}`, topic: 'money', tone: 'info', weight: 30, key: 'adv_spentMore', params: { month: monthName, amount: money(-diff) } })
       }
     }
   }

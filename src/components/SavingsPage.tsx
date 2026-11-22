@@ -45,9 +45,11 @@ export default function SavingsPage({ householdId }: { householdId: string }) {
           <IconButton label={t('search')} onClick={() => setSearching(true)}>
             <Search size={21} />
           </IconButton>
-          <IconButton label={t('settings')} href="#/profile">
-            <Settings size={21} />
-          </IconButton>
+          <span className="lg:hidden">
+            <IconButton label={t('settings')} href="#/profile">
+              <Settings size={21} />
+            </IconButton>
+          </span>
         </span>
       }
     >

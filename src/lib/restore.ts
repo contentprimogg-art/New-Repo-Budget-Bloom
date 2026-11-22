@@ -34,7 +34,7 @@ const TABLES: { name: string; columns: string[]; conflict: string }[] = [
   { name: 'savings_milestones', columns: ['id', 'savings_id', 'amount'], conflict: 'id' },
   {
     name: 'savings_entries',
-    columns: ['id', 'savings_id', 'amount', 'note', 'entry_date', 'source_expense_id', 'transfer_id', 'created_at'],
+    columns: ['id', 'savings_id', 'amount', 'note', 'entry_date', 'source_expense_id', 'transfer_id', 'from_budget', 'created_at'],
     conflict: 'id',
   },
 ]
