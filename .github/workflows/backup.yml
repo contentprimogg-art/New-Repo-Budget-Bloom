@@ -1,0 +1,143 @@
+name: Sauvegarde de la base
+
+# Chaque nuit: copie de la base Supabase, chiffrée AVANT de quitter le serveur de GitHub, puis envoyée
+# sur l'hébergement Infomaniak, dans un dossier HORS du site (jamais accessible depuis le web).
+# Seule la clé privée gardée par le propriétaire (~/.budget_bloom/backup-age-key.txt) peut la relire.
+#
+# Secret à ajouter (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL   adresse « Session pooler » de la base, avec son mot de passe
+# Secrets déjà en place pour le déploiement: SSH_HOST, SSH_USER, SSH_PATH, SSH_KEY
+#
+# Cette tâche ne fait que LIRE la base. Restauration: voir BACKUPS.md.
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Clé publique: elle permet de chiffrer, pas de relire.
+  AGE_RECIPIENT: age1z08akew048h424f202zfwffhhucj3d7sqt4wvemx29fu5rp6vqkqzaquz5
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier les secrets
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          for name in SUPABASE_DB_URL SSH_HOST SSH_USER SSH_PATH SSH_KEY; do
+            if [ -z "${!name}" ]; then echo "::error::Secret manquant: $name"; exit 1; fi
+          done
+
+      - name: Installer les outils
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common age
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Copier la base
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          umask 077
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" \
+            --format=custom --no-owner --no-privileges \
+            --schema=public --schema=auth --schema=storage \
+            --file="$RUNNER_TEMP/base.dump"
+
+      - name: Vérifier la copie
+        run: |
+          list="$(/usr/lib/postgresql/17/bin/pg_restore --list "$RUNNER_TEMP/base.dump")"
+          for table in 'public expenses' 'public envelopes' 'public incomes' 'public households' 'public savings_entries' 'auth users'; do
+            if ! grep -qE " TABLE DATA ${table}( |$)" <<< "$list"; then
+              echo "::error::Copie incomplète: table $table absente."
+              exit 1
+            fi
+          done
+          echo "Copie valide: $(grep -c ' TABLE DATA ' <<< "$list") tables."
+
+      - name: Chiffrer
+        run: |
+          name="budget-bloom-$(date -u +%F).dump.age"
+          age --recipient "$AGE_RECIPIENT" --output "$RUNNER_TEMP/$name" "$RUNNER_TEMP/base.dump"
+          shred -u "$RUNNER_TEMP/base.dump"
+          [ -s "$RUNNER_TEMP/$name" ]
+          echo "BACKUP_NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Configurer SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Envoyer hors du site
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+        run: |
+          remote() { ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes "${SSH_USER}@${SSH_HOST}" "$@"; }
+          home="$(remote 'cd && pwd -P')"
+          site="$(remote "cd '${SSH_PATH%/}' && pwd -P")"
+          dir="$home/budget-bloom-backups"
+          # Garde-fou: une sauvegarde ne doit jamais se retrouver dans un dossier servi sur le web.
+          case "$dir/" in
+            "$site"/*|*/sites/*|*/web/*|*/public_html/*)
+              echo "::error::Le dossier de sauvegarde serait accessible depuis le site. Envoi annulé."
+              exit 1 ;;
+          esac
+          remote "mkdir -p '$dir' && chmod 700 '$dir'"
+          rsync -t -e "ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes" \
+            "$RUNNER_TEMP/$BACKUP_NAME" "${SSH_USER}@${SSH_HOST}:$dir/.envoi-$BACKUP_NAME"
+          # Le fichier ne prend son nom définitif qu'une fois reçu intact.
+          local_sum="$(sha256sum "$RUNNER_TEMP/$BACKUP_NAME" | cut -d' ' -f1)"
+          remote_sum="$(remote "sha256sum '$dir/.envoi-$BACKUP_NAME'" | cut -d' ' -f1)"
+          if [ "$local_sum" != "$remote_sum" ]; then
+            remote "rm -f -- '$dir/.envoi-$BACKUP_NAME'"
+            echo "::error::Le fichier reçu ne correspond pas à l'original."
+            exit 1
+          fi
+          remote "mv -f -- '$dir/.envoi-$BACKUP_NAME' '$dir/$BACKUP_NAME' && chmod 600 '$dir/$BACKUP_NAME'"
+          echo "BACKUP_DIR=$dir" >> "$GITHUB_ENV"
+          echo "Sauvegarde envoyée: $BACKUP_NAME"
+
+      # Seulement après un envoi réussi: 30 derniers jours + une copie par mois pendant 12 mois.
+      - name: Retirer les copies trop anciennes
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          remote() { ssh -n -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes "${SSH_USER}@${SSH_HOST}" "$@"; }
+          remote "ls -1 '$BACKUP_DIR'" | python3 scripts/backup-retention.py > "$RUNNER_TEMP/old.txt"
+          while IFS= read -r name; do
+            remote "rm -f -- '$BACKUP_DIR/$name'"
+            echo "Retirée: $name"
+          done < "$RUNNER_TEMP/old.txt"
+
+      - name: Nettoyer
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key "$RUNNER_TEMP"/*.age
+          if [ -f "$RUNNER_TEMP/base.dump" ]; then shred -u "$RUNNER_TEMP/base.dump"; fi
