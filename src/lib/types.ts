@@ -87,16 +87,20 @@ export interface EnvelopeStats {
 }
 
 /** Arrondi au centime: les additions de décimales laissent sinon des écarts invisibles (20,880000001). */
-export const roundCents = (n: number) => Math.round(n * 100) / 100
+export const roundCents = (n: number) => Math.round(n * 100) / 100 + 0 // « + 0 » évite d'afficher -0,00 €
+
+/** Dépassement en euros: compté seulement à partir de 0,01 au-dessus du budget. */
+export const overAmount = (spent: number, budget: number) => Math.max(0, Math.round(spent * 100) - Math.round(budget * 100)) / 100
+
+export const isOverBudget = (spent: number, budget: number) => overAmount(spent, budget) >= 0.01
 
 export function envelopeStats(budget: number, rawSpent: number): EnvelopeStats {
   const spent = roundCents(rawSpent)
-  const remaining = roundCents(budget - spent)
   return {
     spent,
-    remaining,
+    remaining: roundCents(budget - spent),
     percent: budget > 0 ? Math.round((spent / budget) * 100) : spent > 0 ? 100 : 0,
-    overBy: Math.max(0, -remaining),
+    overBy: overAmount(spent, budget),
   }
 }
 

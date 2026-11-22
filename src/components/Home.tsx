@@ -10,7 +10,7 @@ import { useDataVersion } from '../lib/realtime'
 import { useHash } from '../lib/route'
 import { supabase } from '../lib/supabase'
 import { useAdvice } from '../lib/useAdvice'
-import { countsAsSpent, currentMonth, roundCents, shiftMonth, type Envelope, type EnvelopeGroup, type Income } from '../lib/types'
+import { countsAsSpent, currentMonth, isOverBudget, overAmount, roundCents, shiftMonth, type Envelope, type EnvelopeGroup, type Income } from '../lib/types'
 import EnvelopeSheet from './budget/EnvelopeSheet'
 import GroupSection from './budget/GroupSection'
 import GroupSheet from './budget/GroupSheet'
@@ -252,7 +252,7 @@ export default function Home({ householdId }: { householdId: string }) {
   const totalIncome = roundCents(incomes.reduce((s, i) => s + i.amount, 0))
   const totalBudget = roundCents(envelopes.reduce((s, e) => s + e.budget, 0))
   const totalSpent = roundCents(envelopes.reduce((s, e) => s + (spentBy[e.id] ?? 0), 0))
-  const overList = envelopes.filter((e) => (spentBy[e.id] ?? 0) > e.budget)
+  const overList = envelopes.filter((e) => isOverBudget(spentBy[e.id] ?? 0, e.budget))
   const groupIds = new Set(groups.map((g) => g.id))
   const ungrouped = envelopes.filter((e) => !e.group_id || !groupIds.has(e.group_id))
 
@@ -339,7 +339,7 @@ export default function Home({ householdId }: { householdId: string }) {
                 totalSpent={totalSpent}
                 totalIncome={totalIncome}
                 savedFromBudget={savedFromBudget}
-                totalOver={overList.reduce((s, e) => s + (spentBy[e.id] ?? 0) - e.budget, 0)}
+                totalOver={roundCents(overList.reduce((s, e) => s + overAmount(spentBy[e.id] ?? 0, e.budget), 0))}
                 overCount={overList.length}
               />
             </Card>

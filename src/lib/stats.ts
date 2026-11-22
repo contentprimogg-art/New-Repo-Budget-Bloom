@@ -1,6 +1,6 @@
 import { remember, statsKey, statsMonthsKey } from './pageCache'
 import { supabase } from './supabase'
-import { countsAsSpent, roundCents, type Envelope, type ExpenseStatus } from './types'
+import { countsAsSpent, isOverBudget, overAmount, roundCents, type Envelope, type ExpenseStatus } from './types'
 
 export interface StatExpense {
   id: string
@@ -104,7 +104,7 @@ export function monthTotals(months: string[], envs: StatEnvelope[]): MonthTotal[
       month,
       budget: roundCents(mine.reduce((s, e) => s + e.budget, 0)),
       spent: roundCents(mine.reduce((s, e) => s + spentOf(e), 0)),
-      over: roundCents(mine.reduce((s, e) => s + Math.max(0, spentOf(e) - e.budget), 0)),
+      over: roundCents(mine.reduce((s, e) => s + overAmount(spentOf(e), e.budget), 0)),
     }
   })
 }
@@ -130,7 +130,7 @@ export function envelopeMatrix(months: string[], envs: StatEnvelope[]): MatrixRo
   for (const row of rows.values()) {
     const present = months.map((m) => row.cells[m]).filter((c): c is { budget: number; spent: number } => !!c)
     row.averageSpent = present.length ? present.reduce((s, c) => s + c.spent, 0) / present.length : 0
-    row.overMonths = present.filter((c) => c.spent > c.budget).length
+    row.overMonths = present.filter((c) => isOverBudget(c.spent, c.budget)).length
   }
   return [...rows.values()]
 }

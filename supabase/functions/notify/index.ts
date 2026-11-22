@@ -73,6 +73,9 @@ const TEXT = {
   },
 }
 
+// Comparaisons au centime: un budget n'est dépassé qu'à partir de 0,01 au-dessus.
+const toCents = (n: number) => Math.round(n * 100)
+
 const money = (n: number, lang: Lang, currency: string) =>
   new Intl.NumberFormat(lang === 'en' ? 'en-GB' : 'fr-FR', { style: 'currency', currency }).format(n)
 
@@ -259,13 +262,15 @@ async function onExpense(id: string) {
   if (env.month !== now.month || budget <= 0) return
   const { data: rows } = await db.from('expenses').select('amount, status').eq('envelope_id', env.id)
   const spent = (rows ?? []).filter((r) => r.status !== 'refunded').reduce((s, r) => s + Number(r.amount), 0)
-  if (spent > budget) {
+  const spentCents = toCents(spent)
+  const budgetCents = toCents(budget)
+  if (spentCents > budgetCents) {
     await once(`env80:${env.id}`)
     if (await once(`env100:${env.id}`)) {
-      await sendTo(members, 'envelopes', (lang) => ({ title: env.name, body: TEXT[lang].over(money(spent - budget, lang, currency)), url, tag: `env-${env.id}` }))
+      await sendTo(members, 'envelopes', (lang) => ({ title: env.name, body: TEXT[lang].over(money((spentCents - budgetCents) / 100, lang, currency)), url, tag: `env-${env.id}` }))
     }
-  } else if (spent >= budget * 0.8 && (await once(`env80:${env.id}`))) {
-    await sendTo(members, 'envelopes', (lang) => ({ title: env.name, body: TEXT[lang].at80(money(budget - spent, lang, currency)), url, tag: `env-${env.id}` }))
+  } else if (spentCents >= budgetCents * 0.8 && (await once(`env80:${env.id}`))) {
+    await sendTo(members, 'envelopes', (lang) => ({ title: env.name, body: TEXT[lang].at80(money((budgetCents - spentCents) / 100, lang, currency)), url, tag: `env-${env.id}` }))
   }
 }
 
@@ -292,7 +297,7 @@ async function onTick() {
       const spentWeek = (week ?? []).filter((r) => r.status !== 'refunded').reduce((s, r) => s + Number(r.amount), 0)
       const over = envs
         .filter((e) => Number(e.budget) > 0)
-        .filter((e) => ((e.expenses ?? []) as { amount: number; status: string }[]).filter((x) => x.status !== 'refunded').reduce((s, x) => s + Number(x.amount), 0) > Number(e.budget))
+        .filter((e) => ((e.expenses ?? []) as { amount: number; status: string }[]).filter((x) => x.status !== 'refunded').reduce((s, x) => s + toCents(Number(x.amount)), 0) > toCents(Number(e.budget)))
         .map((e) => e.name as string)
       await sendTo(members, 'weekly', (lang) => ({
         title: TEXT[lang].weekTitle,

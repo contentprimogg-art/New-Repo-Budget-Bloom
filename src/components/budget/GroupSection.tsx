@@ -2,7 +2,7 @@ import { ChevronDown, Ellipsis, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtMoney } from '../../lib/format'
-import { roundCents, type Envelope } from '../../lib/types'
+import { isOverBudget, roundCents, type Envelope } from '../../lib/types'
 import Collapse from '../ui/Collapse'
 import ProgressBar from '../ui/ProgressBar'
 import EnvelopeRow from './EnvelopeRow'
@@ -45,7 +45,7 @@ export default function GroupSection({
 
   const budget = roundCents(envelopes.reduce((s, e) => s + e.budget, 0))
   const spent = roundCents(envelopes.reduce((s, e) => s + (spentBy[e.id] ?? 0), 0))
-  const overCount = envelopes.filter((e) => roundCents(spentBy[e.id] ?? 0) > e.budget).length
+  const overCount = envelopes.filter((e) => isOverBudget(spentBy[e.id] ?? 0, e.budget)).length
 
   function toggle() {
     const next = !collapsed
@@ -95,7 +95,7 @@ export default function GroupSection({
             </span>
           )}
         </p>
-        <span className={`min-w-0 max-w-[60%] text-right tabular-nums [overflow-wrap:anywhere] ${spent > budget ? 'font-semibold text-over' : 'text-muted'}`}>
+        <span className={`min-w-0 max-w-[60%] text-right tabular-nums [overflow-wrap:anywhere] ${isOverBudget(spent, budget) ? 'font-semibold text-over' : 'text-muted'}`}>
           {money(spent)} / {money(budget)}
         </span>
       </div>

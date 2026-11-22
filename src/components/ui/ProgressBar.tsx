@@ -1,3 +1,5 @@
+import { isOverBudget } from '../../lib/types'
+
 // Barre de progression: fond toujours gris neutre, seule la progression prend la couleur d'accent
 // (rouge en cas de dépassement). Ainsi, quelle que soit la palette choisie, on lit la barre d'un coup d'œil.
 export default function ProgressBar({
@@ -11,7 +13,7 @@ export default function ProgressBar({
   size?: 'lg' | 'sm'
   label: string
 }) {
-  const over = Math.round(spent * 100) > Math.round(budget * 100)
+  const over = isOverBudget(spent, budget)
   const ratio = budget > 0 ? Math.min(spent / budget, 1) : spent > 0 ? 1 : 0
   return (
     <div

@@ -21,6 +21,7 @@ import { IconBadge, badgeColor, colorForIndex } from '../lib/icons'
 import { peek, remember, statsKey, statsMonthsKey } from '../lib/pageCache'
 import { useDataVersion } from '../lib/realtime'
 import type { Tip } from '../lib/tips'
+import { isOverBudget } from '../lib/types'
 import GroupedBars from './GroupedBars'
 import Select from './Select'
 import ScriptTitle from './ScriptTitle'
@@ -129,7 +130,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
     const recent = months.slice(-3)
     for (const row of matrix) {
       const cells = recent.map((m) => row.cells[m]).filter((c): c is NonNullable<typeof c> => !!c)
-      const overs = cells.filter((c) => c.spent > c.budget)
+      const overs = cells.filter((c) => isOverBudget(c.spent, c.budget))
       if (cells.length >= 2 && overs.length >= 2) {
         const average = cells.reduce((s, c) => s + c.spent, 0) / cells.length
         tips.push({
@@ -363,7 +364,7 @@ export default function StatsPage({ householdId }: { householdId: string }) {
                       {months.map((m) => {
                         const c = row.cells[m]
                         if (!c) return <td key={m} className={`${td} text-right text-muted`}>—</td>
-                        const over = c.spent > c.budget
+                        const over = isOverBudget(c.spent, c.budget)
                         return (
                           <td
                             key={m}

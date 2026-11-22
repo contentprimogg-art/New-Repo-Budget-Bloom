@@ -6,7 +6,7 @@
 // aussi souvent que possible ce qui va bien.
 
 import type { Milestone, SavingsEnvelope } from './savings'
-import { countsAsSpent, roundCents, shiftMonth, type Envelope, type ExpenseStatus } from './types'
+import { countsAsSpent, isOverBudget, overAmount, roundCents, shiftMonth, type Envelope, type ExpenseStatus } from './types'
 
 export interface AdviceExpense {
   id: string
@@ -140,8 +140,11 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
   // 1. Rythme et projection du mois en cours.
   for (const e of current) {
     const spent = spentNow.get(e.id) ?? 0
-    if (e.budget <= 0 || spent <= 0 || spent > e.budget) continue
+    if (e.budget <= 0 || spent <= 0 || isOverBudget(spent, e.budget)) continue
     if (frac < 0.2 || frac > 0.93) continue
+    // Une facture réglée en une fois, automatique ou déjà soldée n'a pas de « rythme » à surveiller.
+    const payments = e.expenses.filter((x) => countsAsSpent(x.status))
+    if (payments.length < 2 || payments.every((x) => x.recurring_id) || roundCents(e.budget - spent) <= 0) continue
     const ratio = spent / e.budget
     const projected = spent / frac
     if (projected > e.budget * 1.1 && ratio >= frac + 0.15) {
@@ -171,8 +174,8 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
     })
     .filter((s) => s.room >= 5)
   const overs = current
-    .map((e) => ({ e, over: (spentNow.get(e.id) ?? 0) - e.budget }))
-    .filter((o) => o.over > 0.005 && o.e.budget > 0)
+    .map((e) => ({ e, over: overAmount(spentNow.get(e.id) ?? 0, e.budget) }))
+    .filter((o) => o.over >= 0.01 && o.e.budget > 0)
     .sort((a, b) => b.over - a.over)
   for (const o of overs) {
     spare.sort((a, b) => b.room - a.room)
@@ -261,7 +264,7 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
     let n = 0
     for (const m of past) {
       const x = (byMonth.get(m) ?? []).find((y) => lineage(y) === lineage(e))
-      if (!x || x.budget <= 0 || spentOf(x) <= 0 || spentOf(x) > x.budget) break
+      if (!x || x.budget <= 0 || spentOf(x) <= 0 || isOverBudget(spentOf(x), x.budget)) break
       n++
     }
     if (n >= 3) {
@@ -444,7 +447,7 @@ export function buildAdvice(data: AdviceData, today: Date, nowMonth: string, f: 
   // 9. Début de mois: bilan du mois écoulé (toujours sous l'angle de ce qui a bien marché).
   const prevEnvs = (byMonth.get(prev) ?? []).filter((e) => e.budget > 0)
   if (day <= 10 && prevEnvs.length >= 2) {
-    const kept = prevEnvs.filter((e) => spentOf(e) <= e.budget)
+    const kept = prevEnvs.filter((e) => !isOverBudget(spentOf(e), e.budget))
     const monthName = f.month(prev)
     if (kept.length === prevEnvs.length) {
       out.push({ id: `review:${prev}`, topic: 'wins', tone: 'win', weight: 56, key: 'adv_reviewAll', params: { month: monthName } })

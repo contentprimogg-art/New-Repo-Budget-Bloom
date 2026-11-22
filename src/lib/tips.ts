@@ -30,7 +30,8 @@ export function envelopeTips(args: {
   if (envelope.month === nowMonth && envelope.budget > 0) {
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
     const elapsed = Math.round((today.getDate() / daysInMonth) * 100)
-    if (stats.percent >= 70 && stats.percent - elapsed >= 20 && elapsed < 90) {
+    // Une facture réglée en une fois ou déjà soldée n'a pas de « rythme » à surveiller.
+    if (counted.length >= 2 && stats.remaining > 0 && stats.percent >= 70 && stats.percent - elapsed >= 20 && elapsed < 90) {
       tips.push({ key: 'tipPace', params: { percent: stats.percent, elapsed } })
     }
   }
