@@ -17,6 +17,7 @@ export type Op =
 
 const KEY = 'bloomOutbox'
 const EVENT = 'bloom-outbox'
+const REJECTED_KEY = 'bloomOutboxRejected'
 
 function read(): Op[] {
   try {
@@ -93,18 +94,38 @@ export const addExpense = (expense: NewExpense) => mutate({ kind: 'insert', tabl
 
 let flushing = false
 
+// Problème passager (session à renouveler, serveur occupé): on réessaiera plus tard.
+const isTemporaryError = (message: string) => /jwt|token|expired|timeout|too many|gateway|unavailable|internal server/i.test(message)
+
+// Une opération définitivement refusée n'est pas jetée: elle reste conservée sur l'appareil.
+function keepRejected(op: Op, error: string) {
+  try {
+    const list = JSON.parse(localStorage.getItem(REJECTED_KEY) ?? '[]') as unknown[]
+    localStorage.setItem(REJECTED_KEY, JSON.stringify([...list, { op, error, at: new Date().toISOString() }].slice(-200)))
+  } catch {
+    /* stockage indisponible */
+  }
+}
+
 /** Envoie les opérations en attente, dans l'ordre. Renvoie le nombre d'opérations envoyées. */
 export async function flushOutbox(): Promise<number> {
   if (flushing || !navigator.onLine) return 0
   const pending = read()
   if (pending.length === 0) return 0
+  // Sans session active, le serveur refuserait tout: on attend la reconnexion.
+  const { data } = await supabase.auth.getSession()
+  if (!data.session) return 0
   flushing = true
   let done = 0
   try {
     for (const op of pending) {
       const error = await run(op)
-      if (error && isNetworkError(error)) break // réseau de nouveau perdu: on garde la suite
-      if (error) console.warn('Opération hors-ligne refusée par le serveur:', error, op) // ex. enveloppe supprimée entre-temps
+      if (error && (isNetworkError(error) || isTemporaryError(error))) break // on garde cette opération et la suite
+      if (error) {
+        // ex. enveloppe supprimée entre-temps
+        console.warn('Opération hors-ligne refusée par le serveur:', error, op)
+        keepRejected(op, error)
+      }
       done++
     }
     write(read().slice(done))

@@ -10,6 +10,7 @@ import Splash from './components/ui/Splash'
 import ProfilePage from './components/ProfilePage'
 import SavingsPage from './components/SavingsPage'
 import StatsPage from './components/StatsPage'
+import WhatsNew from './components/WhatsNew'
 import { ProfileProvider } from './lib/profile'
 import { HouseholdProvider } from './lib/household'
 import { HouseholdsContext, loadHouseholds, storeActive, storedActive, type HouseholdRef } from './lib/households'
@@ -129,6 +130,7 @@ function AppContent() {
         <DataProvider key={householdId} householdId={householdId}>
           <HouseholdProvider householdId={householdId} userId={session.user.id}>
             <Pages householdId={householdId} />
+            <WhatsNew accountCreatedAt={session.user.created_at} />
           </HouseholdProvider>
         </DataProvider>
       </HouseholdsContext.Provider>

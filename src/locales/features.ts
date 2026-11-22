@@ -1,6 +1,11 @@
 // Textes des écrans Épargne, Conseils et Bilan (fusionnés dans i18n.ts).
 export const features = {
   fr: {
+    whatsNew: 'Nouveautés',
+    versionLabel: 'Version {{version}}',
+    previousVersions: 'Versions précédentes',
+    seeUpdates: 'Voir',
+    continue: 'Continuer',
     forecastBadge: 'Prévu',
     forecastNotice: "Mois à venir : les éléments récurrents sont affichés comme prévus. Ils seront créés automatiquement à l'arrivée du mois.",
     savedFromBudget: 'Mis de côté ce mois-ci',
@@ -401,6 +406,11 @@ export const features = {
     viewTableData: 'Voir les données en tableau',
   },
   en: {
+    whatsNew: "What's new",
+    versionLabel: 'Version {{version}}',
+    previousVersions: 'Previous versions',
+    seeUpdates: 'View',
+    continue: 'Continue',
     forecastBadge: 'Planned',
     forecastNotice: 'Upcoming month: recurring items are shown as planned. They will be created automatically when the month arrives.',
     savedFromBudget: 'Set aside this month',

@@ -26,6 +26,7 @@ import ChangeEmailCard from './ChangeEmailCard'
 import ConfirmButton from './ConfirmButton'
 import CompanionCard from './CompanionCard'
 import NotificationsCard from './NotificationsCard'
+import { WhatsNewCard } from './WhatsNew'
 import HouseholdCard from './HouseholdCard'
 import HouseholdsCard from './HouseholdSwitch'
 import LanguageSwitch from './LanguageSwitch'
@@ -252,6 +253,8 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
 
       <HouseholdCard userId={userId} />
       <HouseholdsCard />
+
+      <WhatsNewCard />
 
       <Card title={t('data')} description={t('dataHint')}>
         <div className="flex flex-wrap gap-3">

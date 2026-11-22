@@ -189,33 +189,48 @@ export function buildCsv(envs: StatEnvelope[], statusLabel: Record<ExpenseStatus
   return `﻿${lines.join('\r\n')}\r\n`
 }
 
+// Le serveur renvoie au plus 1 000 lignes par requête: on lit tout, page par page, dans un ordre stable.
+async function allRows(table: string, householdId: string, orderBy = 'id') {
+  const rows: unknown[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from(table).select('*').eq('household_id', householdId).order(orderBy).range(from, from + 999)
+    if (error) return { rows, error }
+    rows.push(...(data ?? []))
+    if ((data ?? []).length < 1000) return { rows, error: null }
+  }
+}
+
 /** Sauvegarde complète du foyer (toutes les tables), à conserver en cas de besoin de restauration. */
 export async function buildBackup(householdId: string) {
-  const eq = (table: string) => supabase.from(table).select('*').eq('household_id', householdId)
-  const [envelopes, expenses, balances, savings, milestones, entries] = await Promise.all([
-    eq('envelopes'),
-    eq('expenses'),
-    eq('month_balances'),
-    eq('savings_envelopes'),
-    eq('savings_milestones'),
-    eq('savings_entries'),
+  const read = (table: string, orderBy?: string) => allRows(table, householdId, orderBy)
+  const [groups, envelopes, expenses, balances, savings, milestones, entries, incomes, recurring] = await Promise.all([
+    read('envelope_groups'),
+    read('envelopes'),
+    read('expenses'),
+    read('month_balances', 'month'),
+    read('savings_envelopes'),
+    read('savings_milestones'),
+    read('savings_entries'),
+    read('incomes'),
+    read('recurring_expenses'),
   ])
-  const [incomes, recurring] = await Promise.all([eq('incomes'), eq('recurring_expenses')])
-  const failure = [envelopes, expenses, balances, savings, milestones, entries].find((r) => r.error)
+  // Une sauvegarde incomplète serait trompeuse: toute erreur l'annule.
+  const failure = [groups, envelopes, expenses, balances, savings, milestones, entries, incomes, recurring].find((r) => r.error)
   if (failure?.error) return { json: null, error: failure.error.message }
   return {
     json: JSON.stringify(
       {
         app: 'budget-bloom',
         exported_at: new Date().toISOString(),
-        envelopes: envelopes.data,
-        expenses: expenses.data,
-        month_balances: balances.data,
-        savings_envelopes: savings.data,
-        savings_milestones: milestones.data,
-        savings_entries: entries.data,
-        incomes: incomes.error ? [] : incomes.data,
-        recurring_expenses: recurring.error ? [] : recurring.data,
+        envelope_groups: groups.rows,
+        envelopes: envelopes.rows,
+        expenses: expenses.rows,
+        month_balances: balances.rows,
+        savings_envelopes: savings.rows,
+        savings_milestones: milestones.rows,
+        savings_entries: entries.rows,
+        incomes: incomes.rows,
+        recurring_expenses: recurring.rows,
       },
       null,
       2,

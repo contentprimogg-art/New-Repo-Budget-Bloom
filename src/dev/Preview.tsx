@@ -1,4 +1,5 @@
 import CompanionPreview from './CompanionPreview'
+import { WhatsNewPreview } from '../components/WhatsNew'
 import EnvelopeTable from '../components/EnvelopeTable'
 import SearchSheet from '../components/budget/SearchSheet'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -73,6 +74,7 @@ export default function Preview() {
         <EnvelopeTable envelope={ENVS[0]} expenses={[{ ...EXPENSES[0], amount: 22.75, original_amount: 25, original_currency: 'USD' }, ...EXPENSES.slice(1)]} onChanged={() => {}} />
       </PageShell>
     )
+  if (hash.includes('whatsnew')) return <WhatsNewPreview />
   if (hash.includes('companion')) return <CompanionPreview />
 
   return (
