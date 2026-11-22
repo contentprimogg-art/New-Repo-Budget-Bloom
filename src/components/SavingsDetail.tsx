@@ -505,7 +505,7 @@ function TransferForm({
         <Select variant="field" label={t('transferTo')} value={to} options={options} onChange={setTo} />
       </div>
       <div className="flex items-end gap-3">
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <Field label={t('amount')} error={error}>
             <input inputMode="decimal" placeholder="0,00" aria-invalid={!!error} value={amount} onChange={(e) => setAmount(e.target.value)} className="field-line tabular-nums" />
           </Field>
@@ -566,7 +566,7 @@ function Milestones({
         ))}
       </ul>
       <form onSubmit={add} noValidate className="no-print flex items-end gap-3">
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <Field label={t('milestonePlaceholder')} error={error}>
             <input inputMode="decimal" placeholder="0,00" aria-invalid={!!error} value={amount} onChange={(e) => setAmount(e.target.value)} className="field-line tabular-nums" />
           </Field>

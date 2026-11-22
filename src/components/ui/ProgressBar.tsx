@@ -11,7 +11,7 @@ export default function ProgressBar({
   size?: 'lg' | 'sm'
   label: string
 }) {
-  const over = spent > budget
+  const over = Math.round(spent * 100) > Math.round(budget * 100)
   const ratio = budget > 0 ? Math.min(spent / budget, 1) : spent > 0 ? 1 : 0
   return (
     <div

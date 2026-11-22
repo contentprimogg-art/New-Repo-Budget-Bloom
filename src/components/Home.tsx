@@ -10,7 +10,7 @@ import { useDataVersion } from '../lib/realtime'
 import { useHash } from '../lib/route'
 import { supabase } from '../lib/supabase'
 import { useAdvice } from '../lib/useAdvice'
-import { countsAsSpent, currentMonth, shiftMonth, type Envelope, type EnvelopeGroup, type Income } from '../lib/types'
+import { countsAsSpent, currentMonth, roundCents, shiftMonth, type Envelope, type EnvelopeGroup, type Income } from '../lib/types'
 import EnvelopeSheet from './budget/EnvelopeSheet'
 import GroupSection from './budget/GroupSection'
 import GroupSheet from './budget/GroupSheet'
@@ -175,6 +175,7 @@ export default function Home({ householdId }: { householdId: string }) {
       .eq('from_budget', true)
       .gte('entry_date', `${month}-01`)
       .lt('entry_date', `${shiftMonth(month, 1)}-01`)
+    for (const key of Object.keys(sums)) sums[key] = roundCents(sums[key])
     // Les groupes sont facultatifs: sans la migration 0006, on affiche simplement les enveloppes.
     const view: HomeView = {
       envelopes: shownEnvelopes,
@@ -248,9 +249,9 @@ export default function Home({ householdId }: { householdId: string }) {
   const open = (envelopeId: string, m?: string) => {
     window.location.hash = m && m !== month ? `${PREFIX}${envelopeId}@${m}` : `${PREFIX}${envelopeId}`
   }
-  const totalIncome = incomes.reduce((s, i) => s + i.amount, 0)
-  const totalBudget = envelopes.reduce((s, e) => s + e.budget, 0)
-  const totalSpent = envelopes.reduce((s, e) => s + (spentBy[e.id] ?? 0), 0)
+  const totalIncome = roundCents(incomes.reduce((s, i) => s + i.amount, 0))
+  const totalBudget = roundCents(envelopes.reduce((s, e) => s + e.budget, 0))
+  const totalSpent = roundCents(envelopes.reduce((s, e) => s + (spentBy[e.id] ?? 0), 0))
   const overList = envelopes.filter((e) => (spentBy[e.id] ?? 0) > e.budget)
   const groupIds = new Set(groups.map((g) => g.id))
   const ungrouped = envelopes.filter((e) => !e.group_id || !groupIds.has(e.group_id))

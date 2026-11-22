@@ -109,6 +109,7 @@ body,
   padding: calc(0.625rem + env(safe-area-inset-top)) 1rem 0.625rem;
 }
 .install-frame-content {
+  overflow-x: hidden;
   overflow-y: auto;
   min-height: 0;
   flex: 1;
@@ -169,6 +170,23 @@ body::before {
   opacity: var(--grain-opacity);
   background-size: 200px 200px;
   background-image: var(--grain);
+}
+
+/* L'app ne se déplace jamais sur les côtés et ne « rebondit » pas hors de son contenu. */
+html,
+body {
+  overflow-x: hidden;
+  overflow-x: clip;
+  overscroll-behavior: none;
+}
+
+/* iPhone: un champ en dessous de 16 px déclenche un zoom automatique qui ne se rétablit pas. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Tailwind v4 remet le curseur par défaut sur les boutons */
@@ -257,8 +275,9 @@ button[role='combobox']:not(:disabled):active {
   height: 100dvh;
 }
 .app-scroll {
+  overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -466,6 +485,8 @@ body:has([role='dialog']) .install-banner {
 /* Bandeaux dépliables: glissement de 0,25 s (composant Collapse). */
 .fold {
   display: grid;
+  /* Colonne bornée: un long texte sur une ligne ne doit jamais élargir le bandeau. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 0fr;
   opacity: 0;
   transition:
@@ -477,6 +498,7 @@ body:has([role='dialog']) .install-banner {
   opacity: 1;
 }
 .fold > div {
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }

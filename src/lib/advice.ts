@@ -6,7 +6,7 @@
 // aussi souvent que possible ce qui va bien.
 
 import type { Milestone, SavingsEnvelope } from './savings'
-import { countsAsSpent, shiftMonth, type Envelope, type ExpenseStatus } from './types'
+import { countsAsSpent, roundCents, shiftMonth, type Envelope, type ExpenseStatus } from './types'
 
 export interface AdviceExpense {
   id: string
@@ -77,7 +77,7 @@ interface Format {
 // ——— Petits outils ———
 
 const sum = (list: number[]) => list.reduce((s, n) => s + n, 0)
-const spentOf = (e: AdviceEnvelope) => sum(e.expenses.filter((x) => countsAsSpent(x.status)).map((x) => x.amount))
+const spentOf = (e: AdviceEnvelope) => roundCents(sum(e.expenses.filter((x) => countsAsSpent(x.status)).map((x) => x.amount)))
 const lineage = (e: Envelope) => e.lineage_id ?? `name:${e.name.trim().toLowerCase()}`
 const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
 

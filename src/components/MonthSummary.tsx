@@ -5,7 +5,7 @@ import { fmtMoney, fmtMonth, parseAmount } from '../lib/format'
 import { balancesKey, peek, remember } from '../lib/pageCache'
 import { useDataVersion } from '../lib/realtime'
 import { supabase } from '../lib/supabase'
-import { shiftMonth } from '../lib/types'
+import { roundCents, shiftMonth } from '../lib/types'
 import Collapse from './ui/Collapse'
 import ProgressBar from './ui/ProgressBar'
 import SummaryColumns from './ui/SummaryColumns'
@@ -148,11 +148,11 @@ export default function MonthSummary({
   }
 
   const { start, end } = balances
-  const left = totalBudget - totalSpent
+  const left = roundCents(totalBudget - totalSpent)
   // Argent disponible ce mois-ci: solde de début + revenus (dès qu'au moins l'un des deux est connu).
   const available = start == null && totalIncome === 0 ? null : (start ?? 0) + totalIncome
-  const toAllocate = available == null ? null : available - totalBudget - savedFromBudget
-  const estimated = available == null ? null : available - totalSpent - savedFromBudget
+  const toAllocate = available == null ? null : roundCents(available - totalBudget - savedFromBudget)
+  const estimated = available == null ? null : roundCents(available - totalSpent - savedFromBudget)
   const gap = end != null && estimated != null ? end - estimated : null
 
   return (

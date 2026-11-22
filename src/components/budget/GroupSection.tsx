@@ -2,7 +2,7 @@ import { ChevronDown, Ellipsis, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtMoney } from '../../lib/format'
-import type { Envelope } from '../../lib/types'
+import { roundCents, type Envelope } from '../../lib/types'
 import Collapse from '../ui/Collapse'
 import ProgressBar from '../ui/ProgressBar'
 import EnvelopeRow from './EnvelopeRow'
@@ -43,9 +43,9 @@ export default function GroupSection({
   const [collapsed, setCollapsed] = useState(() => readCollapsed()[id] ?? false)
   const [menu, setMenu] = useState(false)
 
-  const budget = envelopes.reduce((s, e) => s + e.budget, 0)
-  const spent = envelopes.reduce((s, e) => s + (spentBy[e.id] ?? 0), 0)
-  const overCount = envelopes.filter((e) => (spentBy[e.id] ?? 0) > e.budget).length
+  const budget = roundCents(envelopes.reduce((s, e) => s + e.budget, 0))
+  const spent = roundCents(envelopes.reduce((s, e) => s + (spentBy[e.id] ?? 0), 0))
+  const overCount = envelopes.filter((e) => roundCents(spentBy[e.id] ?? 0) > e.budget).length
 
   function toggle() {
     const next = !collapsed

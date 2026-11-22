@@ -1,6 +1,6 @@
 import { remember, statsKey, statsMonthsKey } from './pageCache'
 import { supabase } from './supabase'
-import { countsAsSpent, type Envelope, type ExpenseStatus } from './types'
+import { countsAsSpent, roundCents, type Envelope, type ExpenseStatus } from './types'
 
 export interface StatExpense {
   id: string
@@ -88,7 +88,7 @@ export async function loadStats(
 }
 
 export const spentOf = (e: StatEnvelope) =>
-  e.expenses.reduce((sum, x) => (countsAsSpent(x.status) ? sum + x.amount : sum), 0)
+  roundCents(e.expenses.reduce((sum, x) => (countsAsSpent(x.status) ? sum + x.amount : sum), 0))
 
 export interface MonthTotal {
   month: string
@@ -102,9 +102,9 @@ export function monthTotals(months: string[], envs: StatEnvelope[]): MonthTotal[
     const mine = envs.filter((e) => e.month === month)
     return {
       month,
-      budget: mine.reduce((s, e) => s + e.budget, 0),
-      spent: mine.reduce((s, e) => s + spentOf(e), 0),
-      over: mine.reduce((s, e) => s + Math.max(0, spentOf(e) - e.budget), 0),
+      budget: roundCents(mine.reduce((s, e) => s + e.budget, 0)),
+      spent: roundCents(mine.reduce((s, e) => s + spentOf(e), 0)),
+      over: roundCents(mine.reduce((s, e) => s + Math.max(0, spentOf(e) - e.budget), 0)),
     }
   })
 }
