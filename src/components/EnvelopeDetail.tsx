@@ -32,6 +32,7 @@ import { MemberAvatar } from './ui/AvatarStack'
 import Fab from './ui/Fab'
 import Donut from './ui/Donut'
 import Card from './ui/Card'
+import Collapse from './ui/Collapse'
 import { IconButton } from './ui/PageHeader'
 import PageShell from './ui/PageShell'
 import SummaryColumns from './ui/SummaryColumns'
@@ -480,16 +481,16 @@ export function TransactionRow({
           )}
         </div>
       )}
-      {repeating && (
+      <Collapse open={repeating}>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted">{t('repeat')}:</span>
+          <span className="text-muted">{t('repeat')} :</span>
           {FREQUENCIES.map((f) => (
             <button key={f} onClick={() => void repeat(f)} className="rounded-full bg-accent-soft px-3 py-1 text-accent-strong">
               {t(`repeat_${f}`)}
             </button>
           ))}
         </div>
-      )}
+      </Collapse>
       {failure && <p className="text-over">{failure}</p>}
       {picking && (
         <KeepDialog householdId={householdId} onChoose={(savingsId) => void setStatus('kept', savingsId)} onCancel={() => setPicking(false)} />
@@ -514,7 +515,7 @@ export function TransactionRow({
           {original && <span className="max-w-full text-[11px] text-muted tabular-nums [overflow-wrap:anywhere]">{original}</span>}
           {status}
         </button>
-        {open && details}
+        <Collapse open={open}>{details}</Collapse>
       </li>
     )
   }
@@ -542,7 +543,7 @@ export function TransactionRow({
           {original && <span className="text-right text-[11px] text-muted tabular-nums [overflow-wrap:anywhere]">{original}</span>}
         </span>
       </button>
-      {open && details}
+      <Collapse open={open}>{details}</Collapse>
     </li>
   )
 }

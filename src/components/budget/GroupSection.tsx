@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtMoney } from '../../lib/format'
 import type { Envelope } from '../../lib/types'
+import Collapse from '../ui/Collapse'
 import ProgressBar from '../ui/ProgressBar'
 import EnvelopeRow from './EnvelopeRow'
 
@@ -101,13 +102,13 @@ export default function GroupSection({
       <div className="mt-2 pl-6">
         <ProgressBar size="sm" spent={spent} budget={budget} label={`${title}: ${money(spent)} / ${money(budget)}`} />
       </div>
-      {!collapsed && (
-        <ul className="fade-up divide-y divide-dashed divide-muted/30">
+      <Collapse open={!collapsed}>
+        <ul className="divide-y divide-dashed divide-muted/30">
           {envelopes.map((e) => (
             <EnvelopeRow key={e.id} envelope={e} spent={spentBy[e.id] ?? 0} contributors={contributors[e.id]} onOpen={() => onOpen(e.id)} />
           ))}
         </ul>
-      )}
+      </Collapse>
     </section>
   )
 }

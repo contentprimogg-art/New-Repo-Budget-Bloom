@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import Collapse from './ui/Collapse'
 
 export interface BarSeries {
   key: string
@@ -62,6 +63,7 @@ export default function GroupedBars({
   const { t, i18n } = useTranslation()
   const [ref, width] = useWidth()
   const [hover, setHover] = useState<number | null>(null)
+  const [tableOpen, setTableOpen] = useState(false)
 
   const n = categories.length
   const plotW = Math.max(width - MARGIN.left - MARGIN.right, 10)
@@ -160,8 +162,14 @@ export default function GroupedBars({
           ))}
         </figcaption>
       )}
-      <details className="no-print text-xs text-muted">
-        <summary className="cursor-pointer">{t('viewTableData')}</summary>
+      <div className="no-print text-xs text-muted">
+        <button type="button" onClick={() => setTableOpen(!tableOpen)} aria-expanded={tableOpen} className="flex items-center gap-1">
+          <svg aria-hidden viewBox="0 0 12 12" className={`size-3 transition-transform duration-200 ${tableOpen ? 'rotate-90' : ''}`}>
+            <path d="M4.5 2.5 8 6l-3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {t('viewTableData')}
+        </button>
+        <Collapse open={tableOpen}>
         <table className="mt-2 w-full text-left">
           <thead>
             <tr>
@@ -186,7 +194,8 @@ export default function GroupedBars({
             ))}
           </tbody>
         </table>
-      </details>
+        </Collapse>
+      </div>
     </figure>
   )
 }

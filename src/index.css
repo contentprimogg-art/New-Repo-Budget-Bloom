@@ -463,7 +463,31 @@ body:has([role='dialog']) .install-banner {
   animation: drift 18s ease-in-out infinite;
 }
 
+/* Bandeaux dépliables: glissement de 0,25 s (composant Collapse). */
+.fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease;
+}
+.fold[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.fold > div {
+  min-height: 0;
+  overflow: hidden;
+}
+.fold[data-settled='true'] > div {
+  overflow: visible;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .fold {
+    transition: none;
+  }
   .fade-up,
   .sheet-in,
   .hero-gradient,

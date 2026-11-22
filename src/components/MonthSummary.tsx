@@ -5,6 +5,7 @@ import { fmtMoney, fmtMonth, parseAmount } from '../lib/format'
 import { useDataVersion } from '../lib/realtime'
 import { supabase } from '../lib/supabase'
 import { shiftMonth } from '../lib/types'
+import Collapse from './ui/Collapse'
 import ProgressBar from './ui/ProgressBar'
 import SummaryColumns from './ui/SummaryColumns'
 
@@ -176,8 +177,8 @@ export default function MonthSummary({
           {t('balancesAndForecast')}
           <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
-        {open && (
-          <ul className="fade-up mt-2 divide-y divide-dashed divide-muted/30">
+        <Collapse open={open}>
+          <ul className="mt-2 divide-y divide-dashed divide-muted/30">
             <BalanceRow label={t('startBalance')} value={asField(start)} saved={flash === 'start_balance'} onSave={save('start_balance')}>
               {start == null && prevEnd != null && (
                 <button type="button" onClick={() => void save('start_balance')(String(prevEnd))} className="self-start text-xs text-accent-strong underline">
@@ -227,7 +228,7 @@ export default function MonthSummary({
             )}
             {toAllocate != null && toAllocate < 0 && <li className="py-2 text-xs text-over">{t('overAllocatedBudget')}</li>}
           </ul>
-        )}
+        </Collapse>
       </div>
       {error && <p className="text-sm text-over">{error}</p>}
     </section>

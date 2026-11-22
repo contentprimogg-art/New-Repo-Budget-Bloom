@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { Advice, AdviceAction, Tone } from '../lib/advice'
 import { useOptionalProfile } from '../lib/profile'
 import Card from './ui/Card'
+import Collapse from './ui/Collapse'
 
 const TONE: Record<Tone, { icon: typeof Check; color: string }> = {
   win: { icon: PartyPopper, color: 'var(--ok-ink)' },
@@ -113,7 +114,8 @@ export default function Companion({ advice, hide, apply }: Props) {
   const ideas = advice.filter((a) => a.tone !== 'win')
   const summary =
     advice.length === 0 ? t('companionCalm') : ideas.length === 0 ? t('companionWins') : t('companionCount', { count: ideas.length })
-  const shown = expanded ? advice : advice.slice(0, 3)
+  const shown = advice.slice(0, 3)
+  const more = advice.slice(3)
 
   return (
     <Card>
@@ -133,6 +135,15 @@ export default function Companion({ advice, hide, apply }: Props) {
             <AdviceItem key={a.id} advice={a} hide={hide} apply={apply} />
           ))}
         </ul>
+      )}
+      {more.length > 0 && (
+        <Collapse open={expanded}>
+          <ul className="mt-3.5 divide-y divide-dashed divide-muted/30 border-t border-dashed border-muted/30">
+            {more.map((a) => (
+              <AdviceItem key={a.id} advice={a} hide={hide} apply={apply} />
+            ))}
+          </ul>
+        </Collapse>
       )}
       {advice.length > 3 && (
         <button type="button" onClick={() => setExpanded(!expanded)} className="mt-4 text-sm font-medium text-accent-strong underline-offset-4 hover:underline">
