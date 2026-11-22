@@ -33,3 +33,6 @@ dist-ssr
 
 # APK construit localement (celui de public/ est publié avec le site)
 /budget-bloom.apk
+
+# Fichiers temporaires de l outil Supabase
+supabase/.temp/
