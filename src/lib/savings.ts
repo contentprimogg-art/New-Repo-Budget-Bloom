@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { peek, remember, savingsKey } from './pageCache'
 import { useDataVersion } from './realtime'
 import { todayIso } from './format'
 import { supabase } from './supabase'
@@ -66,13 +67,17 @@ export async function loadSavings(householdId: string): Promise<{ data: SavingsD
 }
 
 export function useSavings(householdId: string) {
-  const [data, setData] = useState<SavingsData | null>(null)
+  const [data, setData] = useState<SavingsData | null>(() => peek<SavingsData>(savingsKey(householdId)) ?? null)
   const [error, setError] = useState<string | null>(null)
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(() => !!peek(savingsKey(householdId)))
 
   const reload = useCallback(async () => {
     const result = await loadSavings(householdId)
-    setData(result.data)
+    // En cas d'erreur, on garde les dernières données connues à l'écran.
+    if (result.data) {
+      remember(savingsKey(householdId), result.data)
+      setData(result.data)
+    }
     setError(result.error)
     setLoaded(true)
   }, [householdId])
@@ -84,6 +89,12 @@ export function useSavings(householdId: string) {
   }, [reload, version])
 
   return { data, error, loaded, reload }
+}
+
+/** Prépare l'onglet Épargne en arrière-plan. */
+export async function preloadSavings(householdId: string) {
+  const result = await loadSavings(householdId)
+  if (result.data) remember(savingsKey(householdId), result.data)
 }
 
 export const childrenOf = (data: SavingsData, id: string) => data.envelopes.filter((e) => e.parent_id === id)

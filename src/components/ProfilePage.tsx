@@ -5,6 +5,7 @@ import { ACCEPT, isImageFile, prepareAvatar } from '../lib/avatar'
 import { outboxCount } from '../lib/expenses'
 import { downloadFile } from '../lib/files'
 import { todayIso } from '../lib/format'
+import { clearPageCache } from '../lib/pageCache'
 import { useProfile } from '../lib/profile'
 import { parseBackup, restoreBackup, type Backup } from '../lib/restore'
 import { signOut } from '../lib/session'
@@ -158,6 +159,7 @@ export default function ProfilePage({ householdId }: { householdId: string }) {
     const err = await restoreBackup(householdId, backup)
     setBusy(false)
     if (err) return failed(`${t('errRestore')} (${err})`)
+    clearPageCache()
     setBackup(null)
     done(t('restoreDone'))
   }

@@ -1,5 +1,6 @@
 import { disablePush } from './push'
 import { clearOutbox, flushOutbox } from './expenses'
+import { clearPageCache } from './pageCache'
 import { supabase } from './supabase'
 
 export const REST_CACHE = 'supabase-rest'
@@ -9,6 +10,7 @@ export async function signOut() {
   // Dernière tentative d'envoi des saisies hors-ligne avant de vider l'appareil.
   await flushOutbox().catch(() => 0)
   clearOutbox()
+  clearPageCache()
   try {
     await caches.delete(REST_CACHE)
   } catch {

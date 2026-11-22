@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { buildAdvice, TOPICS, type Advice, type AdviceAction, type AdviceData, type AdviceEnvelope, type Topic } from './advice'
 import { fmtMoney, fmtMonth } from './format'
+import { adviceKey, peek, remember } from './pageCache'
 import { useDataVersion } from './realtime'
 import { makeRecurring } from './recurring'
 import { loadSavings } from './savings'
@@ -128,7 +129,7 @@ export function useAdvice(householdId: string) {
   const version = useDataVersion()
   const settings = useCompanionSettings()
   const nowMonth = currentMonth()
-  const [data, setData] = useState<AdviceData | null>(null)
+  const [data, setData] = useState<AdviceData | null>(() => peek<AdviceData>(adviceKey(householdId, nowMonth)) ?? null)
   const [hidden, setHidden] = useState(readHidden)
   useEffect(() => {
     const on = () => setHidden(readHidden())
@@ -138,7 +139,10 @@ export function useAdvice(householdId: string) {
 
   const reload = useCallback(async () => {
     const result = await loadAdviceData(householdId, nowMonth)
-    if (result) setData(result)
+    if (result) {
+      remember(adviceKey(householdId, nowMonth), result)
+      setData(result)
+    }
   }, [householdId, nowMonth])
 
   useEffect(() => {

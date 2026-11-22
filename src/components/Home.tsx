@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { mergePending, useOutboxCount } from '../lib/expenses'
 import { fmtMonth } from '../lib/format'
 import { loadForecast } from '../lib/forecast'
+import { balancesKey, homeKey, peek, remember } from '../lib/pageCache'
 import { colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
 import { useHash } from '../lib/route'
@@ -29,6 +30,7 @@ import { PRIMARY } from './ui/Field'
 import Card from './ui/Card'
 import { IconButton } from './ui/PageHeader'
 import PageShell from './ui/PageShell'
+import PageSkeleton from './ui/PageSkeleton'
 import Sheet from './ui/Sheet'
 
 const PREFIX = '#/envelope/'
@@ -42,6 +44,17 @@ type SheetState =
   | { kind: 'income'; income?: Income }
   | { kind: 'search' }
   | null
+
+// Dernières données connues d'un mois: affichées aussitôt au retour sur l'onglet.
+interface HomeView {
+  envelopes: Envelope[]
+  groups: EnvelopeGroup[]
+  groupsMissing: boolean
+  spentBy: Record<string, number>
+  contributors: Record<string, string[]>
+  incomes: Income[]
+  savedFromBudget: number
+}
 
 // Navigation par hash: le bouton « retour » du téléphone ferme le détail.
 // « #/envelope/<id>@<mois> » ouvre une enveloppe d'un autre mois (depuis la recherche).
@@ -61,20 +74,32 @@ export default function Home({ householdId }: { householdId: string }) {
   const [month, setMonth] = useState(nowMonth)
   const [rolled, setRolled] = useState(0)
   const { id: selectedId, month: selectedMonth } = useSelected()
-  const [envelopes, setEnvelopes] = useState<Envelope[]>([])
-  const [groups, setGroups] = useState<EnvelopeGroup[]>([])
-  const [groupsMissing, setGroupsMissing] = useState(false)
-  const [spentBy, setSpentBy] = useState<Record<string, number>>({})
-  const [contributors, setContributors] = useState<Record<string, string[]>>({})
-  const [incomes, setIncomes] = useState<Income[]>([])
-  const [savedFromBudget, setSavedFromBudget] = useState(0)
-  const [loaded, setLoaded] = useState(false)
+  const [known] = useState(() => peek<HomeView>(homeKey(householdId, nowMonth)))
+  const [envelopes, setEnvelopes] = useState<Envelope[]>(known?.envelopes ?? [])
+  const [groups, setGroups] = useState<EnvelopeGroup[]>(known?.groups ?? [])
+  const [groupsMissing, setGroupsMissing] = useState(known?.groupsMissing ?? false)
+  const [spentBy, setSpentBy] = useState<Record<string, number>>(known?.spentBy ?? {})
+  const [contributors, setContributors] = useState<Record<string, string[]>>(known?.contributors ?? {})
+  const [incomes, setIncomes] = useState<Income[]>(known?.incomes ?? [])
+  const [savedFromBudget, setSavedFromBudget] = useState(known?.savedFromBudget ?? 0)
+  const [loaded, setLoaded] = useState(!!known)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [sheet, setSheet] = useState<SheetState>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const rolledOver = useRef(false)
   const companion = useAdvice(householdId)
   const requestId = useRef(0)
+
+  const showView = useCallback((v: HomeView) => {
+    setEnvelopes(v.envelopes)
+    setGroups(v.groups)
+    setGroupsMissing(v.groupsMissing)
+    setSpentBy(v.spentBy)
+    setContributors(v.contributors)
+    setIncomes(v.incomes)
+    setSavedFromBudget(v.savedFromBudget)
+    setLoaded(true)
+  }, [])
 
   const load = useCallback(async () => {
     const id = ++requestId.current
@@ -85,18 +110,27 @@ export default function Home({ householdId }: { householdId: string }) {
       if (error) console.warn('rollover_month:', error.message)
       else if (typeof data === 'number' && data > 0) setRolled(data)
     }
-    const [env, grp, inc] = await Promise.all([
+    const [env, grp, inc, bal] = await Promise.all([
       supabase.from('envelopes').select('*').eq('household_id', householdId).eq('month', month).order('sort').order('created_at'),
       supabase.from('envelope_groups').select('*').eq('household_id', householdId).order('sort').order('created_at'),
       supabase.from('incomes').select('*').eq('household_id', householdId).eq('month', month).order('received_on'),
+      supabase.from('month_balances').select('month, start_balance, end_balance').eq('household_id', householdId).in('month', [month, shiftMonth(month, -1)]),
     ])
     if (env.error) {
       setLoadError(env.error.message)
       setLoaded(true)
       return
     }
-    // Les groupes sont facultatifs: sans la migration 0006, on affiche simplement les enveloppes.
-    setGroupsMissing(!!grp.error)
+    // Les soldes sont prêts avant l'affichage du résumé: pas de « — » qui clignote.
+    if (!bal.error) {
+      const num = (v: unknown) => (v == null ? null : Number(v))
+      const current = bal.data?.find((r) => r.month === month)
+      remember(balancesKey(householdId, month), {
+        start: num(current?.start_balance),
+        end: num(current?.end_balance),
+        prevEnd: num(bal.data?.find((r) => r.month !== month)?.end_balance),
+      })
+    }
     const list = (env.data ?? []).map((e) => ({ ...e, budget: Number(e.budget) })) as Envelope[]
     const sums: Record<string, number> = {}
     const authors: Record<string, Set<string>> = {}
@@ -141,16 +175,32 @@ export default function Home({ householdId }: { householdId: string }) {
       .eq('from_budget', true)
       .gte('entry_date', `${month}-01`)
       .lt('entry_date', `${shiftMonth(month, 1)}-01`)
+    // Les groupes sont facultatifs: sans la migration 0006, on affiche simplement les enveloppes.
+    const view: HomeView = {
+      envelopes: shownEnvelopes,
+      groups: (grp.data ?? []) as EnvelopeGroup[],
+      groupsMissing: !!grp.error,
+      spentBy: sums,
+      contributors: Object.fromEntries(Object.entries(authors).map(([k, v]) => [k, [...v]])),
+      incomes: shownIncomes,
+      savedFromBudget: saved.error ? 0 : (saved.data ?? []).reduce((s, r) => s + Number(r.amount), 0),
+    }
+    remember(homeKey(householdId, month), view)
     if (id !== requestId.current) return // une requête plus récente (autre mois) a pris le relais
-    setSavedFromBudget(saved.error ? 0 : (saved.data ?? []).reduce((s, r) => s + Number(r.amount), 0))
     setLoadError(null)
-    setEnvelopes(shownEnvelopes)
-    setGroups((grp.data ?? []) as EnvelopeGroup[])
-    setSpentBy(sums)
-    setContributors(Object.fromEntries(Object.entries(authors).map(([k, v]) => [k, [...v]])))
-    setIncomes(shownIncomes)
-    setLoaded(true)
-  }, [householdId, month, nowMonth])
+    showView(view)
+  }, [householdId, month, nowMonth, showView])
+
+  // Changement de mois: données déjà connues tout de suite, sinon silhouette (jamais celles d'un autre mois).
+  const shownMonth = useRef(month)
+  useEffect(() => {
+    if (shownMonth.current === month) return
+    shownMonth.current = month
+    const cached = peek<HomeView>(homeKey(householdId, month))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (cached) showView(cached)
+    else setLoaded(false)
+  }, [householdId, month, showView])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -274,7 +324,8 @@ export default function Home({ householdId }: { householdId: string }) {
         </div>
       )}
 
-      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-12">
+      {!loaded && <PageSkeleton />}
+      <div className={`flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-12 ${loaded ? '' : 'hidden!'}`}>
         <div className="flex flex-col gap-4 lg:sticky lg:top-6">
           <ScriptTitle>{t('summaryTitle')}</ScriptTitle>
           {loaded && !loadError && (

@@ -5,6 +5,7 @@ import { downloadFile, openMailDraft, shareFile } from '../lib/files'
 import { fmtDate, fmtMonth, fmtMoney, todayIso } from '../lib/format'
 import {
   buildBackup,
+  DEFAULT_STATS_RANGE,
   buildCsv,
   envelopeMatrix,
   listMonths,
@@ -12,11 +13,12 @@ import {
   monthTotals,
   spentOf,
   weeklyMatrix,
-  type Balance,
   type StatEnvelope,
+  type StatsView,
 } from '../lib/stats'
 import { chartColor } from '../lib/color'
 import { IconBadge, badgeColor, colorForIndex } from '../lib/icons'
+import { peek, remember, statsKey, statsMonthsKey } from '../lib/pageCache'
 import { useDataVersion } from '../lib/realtime'
 import type { Tip } from '../lib/tips'
 import GroupedBars from './GroupedBars'
@@ -24,9 +26,11 @@ import Select from './Select'
 import ScriptTitle from './ScriptTitle'
 import Donut from './ui/Donut'
 import PageShell from './ui/PageShell'
+import PageSkeleton from './ui/PageSkeleton'
 import Tips from './Tips'
 
 const RANGES = [3, 6, 12] as const
+const NO_ENVELOPES: StatEnvelope[] = []
 const card = 'rounded-3xl border border-border/80 bg-surface p-5 shadow-[0_1px_2px_rgb(26_29_32/0.04)]'
 const chip = (on: boolean) =>
   `flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${
@@ -39,37 +43,51 @@ export default function StatsPage({ householdId }: { householdId: string }) {
   const { t, i18n } = useTranslation()
   const lng = i18n.language
   const money = (n: number) => fmtMoney(n, lng)
-  const [allMonths, setAllMonths] = useState<string[] | null>(null)
-  const [range, setRange] = useState<(typeof RANGES)[number]>(6)
-  const [envs, setEnvs] = useState<StatEnvelope[]>([])
-  const [balances, setBalances] = useState<Record<string, Balance>>({})
-  const [incomes, setIncomes] = useState<Record<string, number>>({})
+  const [allMonths, setAllMonths] = useState<string[] | null>(() => peek<string[]>(statsMonthsKey(householdId)) ?? null)
+  const [range, setRange] = useState<(typeof RANGES)[number]>(DEFAULT_STATS_RANGE)
+  // Dernières données connues: affichées aussitôt, puis rafraîchies sans page vide.
+  const [view, setView] = useState<StatsView | null>(() => {
+    const known = peek<string[]>(statsMonthsKey(householdId))
+    return known ? (peek<StatsView>(statsKey(householdId, known.slice(-DEFAULT_STATS_RANGE).join(','))) ?? null) : null
+  })
   const [focus, setFocus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [mode, setMode] = useState<'spent' | 'budget'>('spent')
   const version = useDataVersion()
 
-  const months = useMemo(() => (allMonths ?? []).slice(-range), [allMonths, range])
-  const monthsKey = months.join(',')
+  const monthsKey = (allMonths ?? []).slice(-range).join(',')
+  const months = useMemo(() => (view?.key ? view.key.split(',') : []), [view?.key])
+  const envs = view?.envelopes ?? NO_ENVELOPES
+  const balances = view?.balances ?? {}
+  const incomes = view?.incomes ?? {}
 
   useEffect(() => {
     void listMonths(householdId).then((r) => {
-      if (r.error) setError(r.error)
+      if (r.error) return setError(r.error)
+      remember(statsMonthsKey(householdId), r.months)
       setAllMonths(r.months)
     })
   }, [householdId, version])
 
   useEffect(() => {
     if (!monthsKey) return
-    // On garde l'affichage précédent pendant le rechargement (pas de saut de mise en page).
+    let alive = true
+    const known = peek<StatsView>(statsKey(householdId, monthsKey))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (known) setView(known)
+    // Sinon on garde l'affichage précédent pendant le chargement (pas de saut de mise en page).
     void loadStats(householdId, monthsKey.split(',')).then((r) => {
+      if (!alive) return
       if (r.error) return setError(r.error)
       setError(null)
-      setEnvs(r.envelopes)
-      setBalances(r.balances)
-      setIncomes(r.incomes)
+      const next: StatsView = { key: monthsKey, envelopes: r.envelopes, balances: r.balances, incomes: r.incomes }
+      remember(statsKey(householdId, monthsKey), next)
+      setView(next)
     })
+    return () => {
+      alive = false
+    }
   }, [householdId, monthsKey, version])
 
   const totals = useMemo(() => monthTotals(months, envs), [months, envs])
@@ -185,8 +203,9 @@ export default function StatsPage({ householdId }: { householdId: string }) {
         </div>
       )}
       {empty && <p className="text-muted">{t('statsEmpty')}</p>}
+      {!empty && !view && !error && <PageSkeleton />}
 
-      {!empty && (
+      {!empty && view && (
         <>
           <div className="no-print flex flex-col items-center gap-3">
             <div role="group" aria-label={t('period')} className="flex gap-1">

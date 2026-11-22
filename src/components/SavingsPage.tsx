@@ -14,6 +14,7 @@ import { IconButton } from './ui/PageHeader'
 import BloomButton from './ui/BloomButton'
 import Card from './ui/Card'
 import PageShell from './ui/PageShell'
+import PageSkeleton from './ui/PageSkeleton'
 import SummaryColumns from './ui/SummaryColumns'
 
 const PREFIX = '#/savings/'
@@ -75,7 +76,8 @@ export default function SavingsPage({ householdId }: { householdId: string }) {
         </>
       )}
 
-      <ScriptTitle>{t('savingsEnvelopes')}</ScriptTitle>
+      {!loaded && !error && <PageSkeleton />}
+      {loaded && <ScriptTitle>{t('savingsEnvelopes')}</ScriptTitle>}
       {loaded && data && top.length === 0 && <Card description={t('noSavings')} />}
       {data && top.length > 0 && (
         <Card>

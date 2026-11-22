@@ -36,6 +36,7 @@ export const RELEASES: Release[] = [
           items: [
             { strong: 'Sauvegarde en CSV', text: 'téléchargez toutes vos données dans un fichier lisible par un tableur.' },
             { strong: 'Restauration sans doublon', text: 'réimportez ce fichier depuis votre profil, le reste de vos données est conservé.' },
+            { strong: 'Onglets instantanés', text: 'vos pages s’affichent tout de suite, sans écran vide.' },
           ],
         },
       ],
@@ -49,6 +50,7 @@ export const RELEASES: Release[] = [
           items: [
             { strong: 'CSV backup', text: 'download all your data in a file any spreadsheet can read.' },
             { strong: 'Restore without duplicates', text: 'import this file again from your profile; the rest of your data is kept.' },
+            { strong: 'Instant tabs', text: 'your pages appear right away, with no empty screen.' },
           ],
         },
       ],

@@ -2,6 +2,7 @@ import { ChevronDown, TriangleAlert } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fmtMoney, fmtMonth, parseAmount } from '../lib/format'
+import { balancesKey, peek, remember } from '../lib/pageCache'
 import { useDataVersion } from '../lib/realtime'
 import { supabase } from '../lib/supabase'
 import { shiftMonth } from '../lib/types'
@@ -97,8 +98,9 @@ export default function MonthSummary({
   const version = useDataVersion()
   const money = (n: number) => fmtMoney(n, lng)
   const asField = (n: number | null) => (n == null ? '' : String(n).replace('.', lng.startsWith('fr') ? ',' : '.'))
-  const [balances, setBalances] = useState<{ start: number | null; end: number | null }>({ start: null, end: null })
-  const [prevEnd, setPrevEnd] = useState<number | null>(null)
+  const [known] = useState(() => peek<{ start: number | null; end: number | null; prevEnd: number | null }>(balancesKey(householdId, month)))
+  const [balances, setBalances] = useState<{ start: number | null; end: number | null }>({ start: known?.start ?? null, end: known?.end ?? null })
+  const [prevEnd, setPrevEnd] = useState<number | null>(known?.prevEnd ?? null)
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState<Field | null>(null)
   const [open, setOpen] = useState(false)
@@ -114,8 +116,10 @@ export default function MonthSummary({
         if (error) return setError(`${t('errLoad')} (${error.message})`)
         const num = (v: unknown) => (v == null ? null : Number(v))
         const current = data?.find((r) => r.month === month)
-        setBalances({ start: num(current?.start_balance), end: num(current?.end_balance) })
-        setPrevEnd(num(data?.find((r) => r.month === prevMonth)?.end_balance))
+        const next = { start: num(current?.start_balance), end: num(current?.end_balance), prevEnd: num(data?.find((r) => r.month === prevMonth)?.end_balance) }
+        remember(balancesKey(householdId, month), next)
+        setBalances({ start: next.start, end: next.end })
+        setPrevEnd(next.prevEnd)
       })
   }, [householdId, month, prevMonth, t, version])
 
@@ -133,7 +137,11 @@ export default function MonthSummary({
       return false
     }
     setError(null)
-    setBalances((b) => ({ ...b, [field === 'start_balance' ? 'start' : 'end']: value }))
+    setBalances((b) => {
+      const next = { ...b, [field === 'start_balance' ? 'start' : 'end']: value }
+      remember(balancesKey(householdId, month), { ...next, prevEnd })
+      return next
+    })
     setFlash(field)
     setTimeout(() => setFlash((f) => (f === field ? null : f)), 2500)
     return true

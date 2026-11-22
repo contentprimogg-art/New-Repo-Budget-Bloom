@@ -14,10 +14,26 @@ import WhatsNew from './components/WhatsNew'
 import { ProfileProvider } from './lib/profile'
 import { HouseholdProvider } from './lib/household'
 import { HouseholdsContext, loadHouseholds, storeActive, storedActive, type HouseholdRef } from './lib/households'
-import { DataProvider } from './lib/realtime'
+import { clearPageCache } from './lib/pageCache'
+import { DataProvider, useDataVersion } from './lib/realtime'
 import { pageOf, useHash } from './lib/route'
+import { preloadSavings } from './lib/savings'
+import { preloadStats } from './lib/stats'
 import { syncPush } from './lib/push'
 import { isConfigured, supabase } from './lib/supabase'
+
+// Prépare les autres onglets juste après l'affichage, puis à chaque changement de données.
+function TabPreloader({ householdId }: { householdId: string }) {
+  const version = useDataVersion()
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void preloadStats(householdId).catch(() => {})
+      void preloadSavings(householdId).catch(() => {})
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [householdId, version])
+  return null
+}
 
 function Pages({ householdId }: { householdId: string }) {
   const page = pageOf(useHash())
@@ -48,7 +64,10 @@ function AppContent() {
     if (!isConfigured) return
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
-      if (event === 'SIGNED_OUT') setPasswordRecovery(false)
+      if (event === 'SIGNED_OUT') {
+        setPasswordRecovery(false)
+        clearPageCache()
+      }
       setSession(nextSession)
     })
     void supabase.auth.getSession().then(({ data: sessionData }) => {
@@ -129,6 +148,7 @@ function AppContent() {
         {/* Changer de foyer remonte tout l'arbre: aucune donnée de l'ancien foyer ne subsiste. */}
         <DataProvider key={householdId} householdId={householdId}>
           <HouseholdProvider householdId={householdId} userId={session.user.id}>
+            <TabPreloader householdId={householdId} />
             <Pages householdId={householdId} />
             <WhatsNew accountCreatedAt={session.user.created_at} />
           </HouseholdProvider>

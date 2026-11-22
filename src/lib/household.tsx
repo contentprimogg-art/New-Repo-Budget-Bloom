@@ -1,6 +1,7 @@
 import i18next from 'i18next'
 import { Fragment, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { setCurrency as setFormatCurrency } from './format'
+import { clearPageCache } from './pageCache'
 import { useOptionalProfile } from './profile'
 import { useDataVersion } from './realtime'
 import { supabase } from './supabase'
@@ -85,6 +86,7 @@ export function HouseholdProvider({ householdId, userId, children }: { household
     async (code: string, rate: number) => {
       const { error } = await supabase.rpc('convert_household', { h: householdId, rate, new_currency: code })
       if (error) return error.message
+      clearPageCache()
       setCurrency(code)
       return null
     },

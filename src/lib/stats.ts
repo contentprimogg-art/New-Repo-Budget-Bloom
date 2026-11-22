@@ -1,3 +1,4 @@
+import { remember, statsKey, statsMonthsKey } from './pageCache'
 import { supabase } from './supabase'
 import { countsAsSpent, type Envelope, type ExpenseStatus } from './types'
 
@@ -14,6 +15,29 @@ export type StatEnvelope = Envelope & { expenses: StatExpense[] }
 export interface Balance {
   start: number | null
   end: number | null
+}
+
+/** Données affichées par le Bilan pour une période (« key » = ses mois). */
+export interface StatsView {
+  key: string
+  envelopes: StatEnvelope[]
+  balances: Record<string, Balance>
+  incomes: Record<string, number>
+}
+
+export const DEFAULT_STATS_RANGE = 6
+
+/** Prépare le Bilan en arrière-plan pour qu'il s'ouvre sans attente. */
+export async function preloadStats(householdId: string) {
+  const list = await listMonths(householdId)
+  if (list.error) return
+  remember(statsMonthsKey(householdId), list.months)
+  const months = list.months.slice(-DEFAULT_STATS_RANGE)
+  if (months.length === 0) return
+  const r = await loadStats(householdId, months)
+  if (r.error) return
+  const key = months.join(',')
+  remember(statsKey(householdId, key), { key, envelopes: r.envelopes, balances: r.balances, incomes: r.incomes } satisfies StatsView)
 }
 
 export async function listMonths(householdId: string): Promise<{ months: string[]; error: string | null }> {
