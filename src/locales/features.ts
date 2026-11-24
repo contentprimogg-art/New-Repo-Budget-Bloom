@@ -1,6 +1,11 @@
 // Textes des écrans Épargne, Conseils et Bilan (fusionnés dans i18n.ts).
 export const features = {
   fr: {
+    preparingMonth: 'Préparation du mois…',
+    plannedNotice: "Mois à venir : {{amount}} de dépenses récurrentes sont prévus. Elles seront ajoutées automatiquement à l'arrivée du mois.",
+    plannedThisMonth: 'prévue ce mois-ci',
+    noTransactionsPlanned: 'Aucune dépense notée pour le moment. Les dépenses récurrentes prévues sont déjà comptées.',
+    errMigration0012: 'Exécutez la migration 0012_prepare_month.sql dans Supabase (SQL Editor) pour modifier les mois à venir.',
     fullBackupCsv: 'Sauvegarde CSV',
     backupCsvDone: "Sauvegarde CSV téléchargée. Vous pouvez la consulter dans un tableur, mais ne l'enregistrez pas depuis celui-ci : le fichier ne serait plus restaurable.",
     errCsvNotBackup: "Ce CSV n'est pas une sauvegarde complète. Le CSV du Bilan sert à consulter vos dépenses : utilisez « Sauvegarde CSV » dans le profil.",
@@ -12,7 +17,7 @@ export const features = {
     seeUpdates: 'Voir',
     continue: 'Continuer',
     forecastBadge: 'Prévu',
-    forecastNotice: "Mois à venir : les éléments récurrents sont affichés comme prévus. Ils seront créés automatiquement à l'arrivée du mois.",
+    forecastNotice: "Mois à venir : les éléments récurrents sont affichés comme prévus. Touchez-en un, ou le bouton +, pour préparer ce mois et le modifier dès maintenant.",
     savedFromBudget: 'Mis de côté ce mois-ci',
     savedFromBudgetHint: "Mouvements d'épargne pris sur l'argent du mois",
     fromBudgetDeposit: "Pris sur l'argent du mois (réduit « À répartir » et le solde estimé)",
@@ -411,6 +416,11 @@ export const features = {
     viewTableData: 'Voir les données en tableau',
   },
   en: {
+    preparingMonth: 'Setting up the month…',
+    plannedNotice: 'Upcoming month: {{amount}} of recurring expenses are planned. They will be added automatically when the month arrives.',
+    plannedThisMonth: 'planned this month',
+    noTransactionsPlanned: 'No expense noted yet. Planned recurring expenses are already counted.',
+    errMigration0012: 'Run migration 0012_prepare_month.sql in Supabase (SQL Editor) to edit upcoming months.',
     fullBackupCsv: 'CSV backup',
     backupCsvDone: 'CSV backup downloaded. You can view it in a spreadsheet, but do not save it from there: it could no longer be restored.',
     errCsvNotBackup: 'This CSV is not a full backup. The Reports CSV is for viewing your expenses: use “CSV backup” in your profile.',
@@ -422,7 +432,7 @@ export const features = {
     seeUpdates: 'View',
     continue: 'Continue',
     forecastBadge: 'Planned',
-    forecastNotice: 'Upcoming month: recurring items are shown as planned. They will be created automatically when the month arrives.',
+    forecastNotice: 'Upcoming month: recurring items are shown as planned. Tap one, or the + button, to set up this month and edit it now.',
     savedFromBudget: 'Set aside this month',
     savedFromBudgetHint: "Savings movements taken from the month's money",
     fromBudgetDeposit: "Taken from this month's money (lowers “To allocate” and the estimated balance)",

@@ -1,8 +1,10 @@
 import { supabase } from './supabase'
 import type { Envelope, Income } from './types'
 
-// Mois à venir: ce qui est récurrent n'est créé pour de bon qu'à l'arrivée du mois. D'ici là, on
-// l'affiche « prévu », calculé à partir du dernier mois existant. Rien n'est enregistré.
+// Mois à venir: tant qu'un mois n'est pas préparé, ses enveloppes et revenus récurrents sont affichés
+// « prévus », calculés à partir du dernier mois existant (rien n'est enregistré). Toucher l'un d'eux
+// prépare le mois pour de bon. Les dépenses récurrentes, elles, ne sont ajoutées qu'à l'arrivée du
+// mois: d'ici là, elles comptent comme prévues dans leur enveloppe.
 
 const monthIndex = (month: string) => {
   const [y, m] = month.split('-').map(Number)
@@ -21,9 +23,9 @@ function dayInMonth(month: string, day: number) {
   return `${month}-${String(Math.min(day, last)).padStart(2, '0')}`
 }
 
-const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+export const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
-export async function loadForecast(householdId: string, month: string, realEnvelopes: Envelope[], realIncomes: Income[]) {
+export async function loadForecast(householdId: string, month: string, realEnvelopes: Envelope[], realIncomes: Income[], prepared: boolean) {
   const latest = async (table: 'envelopes' | 'incomes') => {
     const { data } = await supabase.from(table).select('month').eq('household_id', householdId).lt('month', month).order('month', { ascending: false }).limit(1).maybeSingle()
     return (data?.month as string | undefined) ?? null
@@ -34,21 +36,22 @@ export async function loadForecast(householdId: string, month: string, realEnvel
     supabase.from('recurring_expenses').select('lineage_id, amount, every_months, next_month').eq('household_id', householdId),
   ])
   const [baseEnvelopes, baseIncomes] = await Promise.all([
-    envMonth
+    envMonth && !prepared
       ? supabase.from('envelopes').select('*').eq('household_id', householdId).eq('month', envMonth).eq('recurring', true).is('parent_id', null).order('sort')
       : null,
-    incomeMonth ? supabase.from('incomes').select('*').eq('household_id', householdId).eq('month', incomeMonth).eq('recurring', true) : null,
+    incomeMonth && !prepared ? supabase.from('incomes').select('*').eq('household_id', householdId).eq('month', incomeMonth).eq('recurring', true) : null,
   ])
 
   const envelopes: Envelope[] = ((baseEnvelopes?.data ?? []) as Envelope[])
     .filter((e) => !realEnvelopes.some((x) => (e.lineage_id && x.lineage_id === e.lineage_id) || sameName(x.name, e.name)))
     .map((e) => ({ ...e, id: `forecast:${e.lineage_id ?? e.id}`, month, budget: Number(e.budget), forecast: true }))
 
-  const spentBy: Record<string, number> = {}
+  // Dépenses récurrentes prévues, dans l'enveloppe réelle ou prévue de leur lignée.
+  const planned: Record<string, number> = {}
   for (const r of recurring.data ?? []) {
     if (!isDue(r.next_month as string, Number(r.every_months), month)) continue
-    const target = envelopes.find((e) => e.lineage_id === r.lineage_id)
-    if (target) spentBy[target.id] = (spentBy[target.id] ?? 0) + Number(r.amount)
+    const target = [...realEnvelopes, ...envelopes].find((e) => e.lineage_id === r.lineage_id)
+    if (target) planned[target.id] = (planned[target.id] ?? 0) + Number(r.amount)
   }
 
   const incomes: Income[] = ((baseIncomes?.data ?? []) as Income[])
@@ -62,5 +65,5 @@ export async function loadForecast(householdId: string, month: string, realEnvel
       forecast: true,
     }))
 
-  return { envelopes, incomes, spentBy }
+  return { envelopes, incomes, planned }
 }

@@ -30,6 +30,7 @@ Les migrations sont dans `supabase/migrations/`. À exécuter **dans l'ordre, un
 9. `0009_currency_conversion.sql`: dépenses saisies dans une autre devise et conversion de tous les montants au changement de devise du foyer
 10. `0010_notifications.sql`: notifications (appareils abonnés, préférences, envoi à chaque dépense et toutes les heures via la fonction `notify`)
 11. `0011_forecast_savings_budget.sql`: reconduction fiable des mois à venir, épargne prise sur l'argent du mois
+12. `0012_prepare_month.sql`: préparer un mois à l'avance pour le modifier avant son arrivée
 
 ## Aperçu des composants (développement)
 

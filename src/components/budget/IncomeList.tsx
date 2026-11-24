@@ -22,9 +22,8 @@ export default function IncomeList({ incomes, onEdit }: { incomes: Income[]; onE
               <button
                 type="button"
                 onClick={() => onEdit(income)}
-                disabled={income.forecast}
                 aria-label={`${t('editIncome')} : ${income.label}, ${fmtMoney(income.amount, i18n.language)}`}
-                className="flex w-full items-center gap-3 py-3 text-left disabled:cursor-default!"
+                className="flex w-full items-center gap-3 py-3 text-left"
               >
                 <IconBadge icon={income.icon ?? '💶'} color={income.color ?? '#E2F3E6'} size="sm" />
                 <span className="min-w-0 flex-1">

@@ -29,7 +29,7 @@ export default function EnvelopeRow({
 
   return (
     <li>
-      <button type="button" onClick={onOpen} disabled={envelope.forecast} className="flex w-full flex-col gap-2.5 py-3.5 text-left disabled:cursor-default!">
+      <button type="button" onClick={onOpen} className="flex w-full flex-col gap-2.5 py-3.5 text-left">
         <div className="flex w-full items-center gap-3">
           <IconBadge icon={envelope.icon} color={envelope.color} />
           <div className="min-w-0 flex-1">

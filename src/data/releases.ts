@@ -25,6 +25,50 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.7',
+    date: '2026-11-24',
+    fr: {
+      title: 'Préparez les mois à venir',
+      intro: 'Anticipez vos dépenses sans attendre le début du mois.',
+      sections: [
+        {
+          title: 'Ce qui est nouveau',
+          items: [
+            { strong: 'Mois à venir modifiables', text: 'touchez une enveloppe prévue pour ajuster son budget ou y noter une dépense.' },
+            { strong: 'Dépenses récurrentes prévues', text: 'elles comptent déjà dans les mois à venir.' },
+          ],
+        },
+        {
+          title: 'Améliorations',
+          items: [
+            { strong: 'Affichage sur iPhone', text: 'tout reste bien à l’écran, sans zoom ni décalage.' },
+            { strong: 'Dépassements exacts', text: 'une enveloppe n’est dépassée qu’à partir d’un centime au-dessus de son budget.' },
+          ],
+        },
+      ],
+    },
+    en: {
+      title: 'Plan the months ahead',
+      intro: 'Anticipate your expenses without waiting for the month to start.',
+      sections: [
+        {
+          title: 'New',
+          items: [
+            { strong: 'Editable upcoming months', text: 'tap a planned envelope to adjust its budget or note an expense.' },
+            { strong: 'Planned recurring expenses', text: 'they already count in the months ahead.' },
+          ],
+        },
+        {
+          title: 'Improvements',
+          items: [
+            { strong: 'iPhone display', text: 'everything stays on screen, with no zoom or shifting.' },
+            { strong: 'Exact overruns', text: 'an envelope only counts as over budget from one cent above it.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
     version: '1.6',
     date: '2026-11-22',
     fr: {

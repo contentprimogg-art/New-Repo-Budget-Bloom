@@ -1,6 +1,6 @@
 import { remember, statsKey, statsMonthsKey } from './pageCache'
 import { supabase } from './supabase'
-import { countsAsSpent, isOverBudget, overAmount, roundCents, type Envelope, type ExpenseStatus } from './types'
+import { countsAsSpent, currentMonth, isOverBudget, overAmount, roundCents, type Envelope, type ExpenseStatus } from './types'
 
 export interface StatExpense {
   id: string
@@ -43,7 +43,8 @@ export async function preloadStats(householdId: string) {
 export async function listMonths(householdId: string): Promise<{ months: string[]; error: string | null }> {
   const { data, error } = await supabase.from('envelopes').select('month').eq('household_id', householdId)
   if (error) return { months: [], error: error.message }
-  return { months: [...new Set((data ?? []).map((r) => r.month as string))].sort(), error: null }
+  const now = currentMonth()
+  return { months: [...new Set((data ?? []).map((r) => r.month as string))].filter((m) => m <= now).sort(), error: null }
 }
 
 export async function loadStats(

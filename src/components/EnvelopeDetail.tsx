@@ -6,6 +6,7 @@ import { fmtDate, fmtMoney, fmtMonth } from '../lib/format'
 import { useOptionalHousehold } from '../lib/household'
 import { IconBadge, colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
+import { isDue } from '../lib/forecast'
 import { FREQUENCIES, lineageOf, makeRecurring, type Frequency } from '../lib/recurring'
 import { settleExpense } from '../lib/savings'
 import { supabase } from '../lib/supabase'
@@ -142,7 +143,10 @@ export default function EnvelopeDetail({
     onChanged()
   }
 
-  const spent = loaded ? expenses.reduce((sum, e) => (countsAsSpent(e.status) ? sum + e.amount : sum), 0) : knownSpent
+  // Mois à venir: les dépenses récurrentes qui tomberont ce mois-là comptent déjà, comme prévues.
+  const planned = envelope.month > currentMonth() ? recurring.filter((r) => isDue(r.next_month, r.every_months, envelope.month)) : []
+  const plannedTotal = planned.reduce((sum, r) => sum + r.amount, 0)
+  const spent = loaded ? expenses.reduce((sum, e) => (countsAsSpent(e.status) ? sum + e.amount : sum), 0) + plannedTotal : knownSpent
   const stats = envelopeStats(envelope.budget, spent)
   const over = stats.overBy > 0
   const group = groups.find((g) => g.id === envelope.group_id)
@@ -244,7 +248,12 @@ export default function EnvelopeDetail({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px]">{r.note || t('unnamed')}</span>
                       <span className="text-xs text-muted">
-                        {t(`repeat_${r.every_months}`)} · {t('nextOccurrence', { month: fmtMonth(r.next_month, lng) })}
+                        {t(`repeat_${r.every_months}`)} ·{' '}
+                        {planned.includes(r) ? (
+                          <span className="font-semibold text-accent-strong">{t('plannedThisMonth')}</span>
+                        ) : (
+                          t('nextOccurrence', { month: fmtMonth(r.next_month, lng) })
+                        )}
                       </span>
                     </span>
                     <span className="min-w-0 max-w-[48%] text-right text-[15px] font-medium tabular-nums [overflow-wrap:anywhere]">{money(r.amount)}</span>
@@ -312,7 +321,7 @@ export default function EnvelopeDetail({
               </div>
             </Card>
           )}
-          {loaded && expenses.length === 0 && view !== 'table' && <Card description={t('noTransactions')} />}
+          {loaded && expenses.length === 0 && view !== 'table' && <Card description={planned.length ? t('noTransactionsPlanned') : t('noTransactions')} />}
           {view !== 'table' && expenses.length > 0 && visible.length === 0 && <Card description={t('noResults')} />}
           {loaded && (view === 'table' || expenses.length > 0) &&
             (view === 'table' ? (

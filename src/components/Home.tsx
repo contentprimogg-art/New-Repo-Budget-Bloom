@@ -2,8 +2,8 @@ import { ChevronLeft, ChevronRight, CloudOff, Plus, Search, Settings } from 'luc
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { mergePending, useOutboxCount } from '../lib/expenses'
-import { fmtMonth } from '../lib/format'
-import { loadForecast } from '../lib/forecast'
+import { fmtMoney, fmtMonth } from '../lib/format'
+import { loadForecast, sameName } from '../lib/forecast'
 import { balancesKey, homeKey, peek, remember } from '../lib/pageCache'
 import { colorForIndex } from '../lib/icons'
 import { useDataVersion } from '../lib/realtime'
@@ -54,6 +54,8 @@ interface HomeView {
   contributors: Record<string, string[]>
   incomes: Income[]
   savedFromBudget: number
+  /** Dépenses récurrentes prévues (mois à venir). */
+  plannedTotal?: number
 }
 
 // Navigation par hash: le bouton « retour » du téléphone ferme le détail.
@@ -82,6 +84,8 @@ export default function Home({ householdId }: { householdId: string }) {
   const [contributors, setContributors] = useState<Record<string, string[]>>(known?.contributors ?? {})
   const [incomes, setIncomes] = useState<Income[]>(known?.incomes ?? [])
   const [savedFromBudget, setSavedFromBudget] = useState(known?.savedFromBudget ?? 0)
+  const [plannedTotal, setPlannedTotal] = useState(known?.plannedTotal ?? 0)
+  const [preparing, setPreparing] = useState(false)
   const [loaded, setLoaded] = useState(!!known)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [sheet, setSheet] = useState<SheetState>(null)
@@ -98,10 +102,11 @@ export default function Home({ householdId }: { householdId: string }) {
     setContributors(v.contributors)
     setIncomes(v.incomes)
     setSavedFromBudget(v.savedFromBudget)
+    setPlannedTotal(v.plannedTotal ?? 0)
     setLoaded(true)
   }, [])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<HomeView | undefined> => {
     const id = ++requestId.current
     if (!rolledOver.current) {
       rolledOver.current = true
@@ -114,7 +119,7 @@ export default function Home({ householdId }: { householdId: string }) {
       supabase.from('envelopes').select('*').eq('household_id', householdId).eq('month', month).order('sort').order('created_at'),
       supabase.from('envelope_groups').select('*').eq('household_id', householdId).order('sort').order('created_at'),
       supabase.from('incomes').select('*').eq('household_id', householdId).eq('month', month).order('received_on'),
-      supabase.from('month_balances').select('month, start_balance, end_balance').eq('household_id', householdId).in('month', [month, shiftMonth(month, -1)]),
+      supabase.from('month_balances').select('*').eq('household_id', householdId).in('month', [month, shiftMonth(month, -1)]),
     ])
     if (env.error) {
       setLoadError(env.error.message)
@@ -158,14 +163,19 @@ export default function Home({ householdId }: { householdId: string }) {
       ((inc.data ?? []) as Income[]).map((i) => ({ ...i, amount: Number(i.amount) })),
       (i) => i.month === month,
     ).sort((a, b) => a.received_on.localeCompare(b.received_on))
-    // Mois à venir: les éléments récurrents sont affichés « prévus ».
+    // Mois à venir: éléments récurrents « prévus » (si le mois n'est pas préparé) et dépenses récurrentes prévues.
     let shownEnvelopes = list
     let shownIncomes = incomeRows
+    let plannedSum = 0
     if (month > nowMonth) {
-      const f = await loadForecast(householdId, month, list, incomeRows)
+      const prepared = !bal.error && bal.data?.find((r) => r.month === month)?.prepared === true
+      const f = await loadForecast(householdId, month, list, incomeRows, prepared)
       shownEnvelopes = [...list, ...f.envelopes].sort((a, b) => a.sort - b.sort)
       shownIncomes = [...incomeRows, ...f.incomes].sort((a, b) => a.received_on.localeCompare(b.received_on))
-      Object.assign(sums, f.spentBy)
+      for (const [key, amount] of Object.entries(f.planned)) {
+        sums[key] = (sums[key] ?? 0) + amount
+        plannedSum += amount
+      }
     }
     // Épargne prise sur l'argent de ce mois (dépôts moins retraits; migration 0011).
     const saved = await supabase
@@ -185,12 +195,33 @@ export default function Home({ householdId }: { householdId: string }) {
       contributors: Object.fromEntries(Object.entries(authors).map(([k, v]) => [k, [...v]])),
       incomes: shownIncomes,
       savedFromBudget: saved.error ? 0 : (saved.data ?? []).reduce((s, r) => s + Number(r.amount), 0),
+      plannedTotal: roundCents(plannedSum),
     }
     remember(homeKey(householdId, month), view)
-    if (id !== requestId.current) return // une requête plus récente (autre mois) a pris le relais
+    if (id !== requestId.current) return view // une requête plus récente (autre mois) a pris le relais
     setLoadError(null)
     showView(view)
+    return view
   }, [householdId, month, nowMonth, showView])
+
+  // Préparer un mois à venir: ses enveloppes et revenus prévus sont créés pour pouvoir les modifier.
+  const prepareMonth = async (): Promise<HomeView | null> => {
+    if (!navigator.onLine) {
+      setNotice(t('needsNetwork'))
+      return null
+    }
+    setPreparing(true)
+    const { error } = await supabase.rpc('prepare_month', { h: householdId, m: month })
+    if (error) {
+      setPreparing(false)
+      setNotice(/prepare_month|function/i.test(error.message) ? t('errMigration0012') : `${t('errSave')} (${error.message})`)
+      return null
+    }
+    const view = await load()
+    setPreparing(false)
+    setNotice(null)
+    return view ?? null
+  }
 
   // Changement de mois: données déjà connues tout de suite, sinon silhouette (jamais celles d'un autre mois).
   const shownMonth = useRef(month)
@@ -246,8 +277,27 @@ export default function Home({ householdId }: { householdId: string }) {
     )
   }
 
-  const open = (envelopeId: string, m?: string) => {
+  const goTo = (envelopeId: string, m?: string) => {
     window.location.hash = m && m !== month ? `${PREFIX}${envelopeId}@${m}` : `${PREFIX}${envelopeId}`
+  }
+  const open = async (envelopeId: string, m?: string) => {
+    const planned = envelopes.find((e) => e.id === envelopeId && e.forecast)
+    if (!planned) return goTo(envelopeId, m)
+    if (preparing) return
+    const view = await prepareMonth()
+    const target = view?.envelopes.find((e) => !e.forecast && (e.lineage_id === planned.lineage_id || sameName(e.name, planned.name)))
+    if (target) goTo(target.id)
+  }
+  const editIncome = async (income: Income) => {
+    if (!income.forecast) return setSheet({ kind: 'income', income })
+    if (preparing) return
+    const view = await prepareMonth()
+    const target = view?.incomes.find((i) => !i.forecast && sameName(i.label, income.label))
+    if (target) setSheet({ kind: 'income', income: target })
+  }
+  const quickAdd = async () => {
+    if (hasForecast && !(await prepareMonth())) return
+    setSheet({ kind: 'quick' })
   }
   const totalIncome = roundCents(incomes.reduce((s, i) => s + i.amount, 0))
   const totalBudget = roundCents(envelopes.reduce((s, e) => s + e.budget, 0))
@@ -272,7 +322,7 @@ export default function Home({ householdId }: { householdId: string }) {
           </span>
         </span>
       }
-      fab={realEnvelopes.length > 0 ? <Fab label={t('newExpense')} onClick={() => setSheet({ kind: 'quick' })} /> : undefined}
+      fab={envelopes.length > 0 ? <Fab label={t('newExpense')} onClick={() => void quickAdd()} /> : undefined}
       subtitle={
         <>
         <HouseholdChip />
@@ -311,7 +361,15 @@ export default function Home({ householdId }: { householdId: string }) {
           </button>
         </p>
       )}
-      {hasForecast && <p className="no-print rounded-2xl bg-accent-soft px-4 py-3 text-sm">{t('forecastNotice')}</p>}
+      {preparing && (
+        <p role="status" className="no-print rounded-2xl bg-accent-soft px-4 py-3 text-sm">
+          {t('preparingMonth')}
+        </p>
+      )}
+      {!preparing && hasForecast && <p className="no-print rounded-2xl bg-accent-soft px-4 py-3 text-sm">{t('forecastNotice')}</p>}
+      {!preparing && !hasForecast && plannedTotal > 0 && month > nowMonth && (
+        <p className="no-print rounded-2xl bg-accent-soft px-4 py-3 text-sm">{t('plannedNotice', { amount: fmtMoney(plannedTotal, lng) })}</p>
+      )}
       {(pending > 0 || notice) && (
         <p role="status" className="no-print flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm shadow-sm">
           <CloudOff size={16} className="shrink-0 text-muted" />
@@ -358,7 +416,7 @@ export default function Home({ householdId }: { householdId: string }) {
                   <Plus size={14} /> {t('newIncomeShort')}
                 </button>
               </div>
-              <IncomeList incomes={incomes} onEdit={(income) => setSheet({ kind: 'income', income })} />
+              <IncomeList incomes={incomes} onEdit={(income) => void editIncome(income)} />
             </>
           )}
         </div>
@@ -449,7 +507,7 @@ export default function Home({ householdId }: { householdId: string }) {
           onOpen={(target) => {
             if (target.kind === 'envelope') {
               setSheet(null)
-              open(target.id, target.month)
+              goTo(target.id, target.month)
             } else if (target.kind === 'income') {
               // Revenu: on se place sur son mois et on ouvre sa fiche.
               setMonth(target.income.month)
